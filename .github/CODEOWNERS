@@ -6,6 +6,7 @@
 /lib/ @whoisyourbias
 /scripts/ @whoisyourbias
 /data/ @whoisyourbias
+/submissions/README.md @whoisyourbias
 /package.json @whoisyourbias
 /package-lock.json @whoisyourbias
 /next.config.mjs @whoisyourbias
