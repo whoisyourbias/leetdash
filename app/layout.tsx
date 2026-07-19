@@ -30,7 +30,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <UserRoundCheck size={16} aria-hidden="true" />
               내상태
             </Link>
-            <a href="https://github.com" target="_blank" rel="noreferrer">
+            <a href="https://github.com/whoisyourbias/leetdash" target="_blank" rel="noreferrer">
               <GitFork size={16} aria-hidden="true" />
               GitHub
             </a>
