@@ -1,9 +1,3 @@
-const listTitleKo: Record<string, string> = {
-  "Top Interview Questions Easy": "쉬운 인터뷰 대표 문제",
-  "LeetCode 75": "LeetCode 75",
-  "Top Interview 150": "인터뷰 대표 문제 150",
-};
-
 const sectionKo: Record<string, string> = {
   "1D DP": "1차원 DP",
   "Array": "배열",
@@ -278,7 +272,7 @@ const problemTitleKo: Record<string, string> = {
 };
 
 export function formatCatalogListTitle(title: string) {
-  return listTitleKo[title] ?? title;
+  return title;
 }
 
 export function formatCatalogSection(section: string) {
