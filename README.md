@@ -28,7 +28,7 @@ PR은 `validate` 검증과 리뷰 조건을 통과하면 다른 PR의 GitHub Pag
 
 ## 참가자 등록
 
-참가자는 `data/users.json`에 등록합니다.
+참가자는 `data/users.json`에 등록합니다. `githubUsername`에는 GitHub 프로필 URL에서 `https://github.com/` 뒤에 오는 로그인 ID를 씁니다. 예를 들어 `https://github.com/whoisyourbias`의 `githubUsername`은 `whoisyourbias`입니다.
 
 ```json
 {
@@ -47,9 +47,11 @@ PR은 `validate` 검증과 리뷰 조건을 통과하면 다른 PR의 GitHub Pag
 
 - `id`: `/users/<id>` 경로에 쓰이는 안정적인 식별자
 - `displayName`: 대시보드에 표시할 이름
-- `githubUsername`: `submissions/` 아래 기본 폴더명
+- `githubUsername`: GitHub 로그인 ID; `@`를 붙이지 않고, 표시 이름이나 LeetCode 아이디가 아니라 GitHub 프로필 URL의 마지막 값을 사용
 - `active`: 선택값이며 기본값은 `true`; `false`면 랭킹에서 제외
 - `submissionsPath`: 선택값인 제출 폴더 경로 재정의; 기본값은 `submissions/<githubUsername>`
+
+제출 폴더명은 기본적으로 `githubUsername`과 같아야 합니다. 예를 들어 `githubUsername`이 `whoisyourbias`면 풀이를 `submissions/whoisyourbias/...` 아래에 둡니다.
 
 ## 제출 구조
 

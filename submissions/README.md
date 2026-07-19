@@ -30,6 +30,8 @@ submissions/ada/leetcode-75/1768/solution.ts
 submissions/ada/top-interview-150/88/solution.py
 ```
 
-참가자는 `data/users.json`에 등록합니다. 기본적으로 `githubUsername`은 `submissions/<githubUsername>` 경로와 매핑됩니다.
+참가자는 `data/users.json`에 등록합니다. `githubUsername`에는 GitHub 프로필 URL에서 `https://github.com/` 뒤에 오는 로그인 ID를 씁니다. `@`를 붙이지 않고, 표시 이름이나 LeetCode 아이디를 쓰지 않습니다.
+
+기본적으로 `githubUsername`은 `submissions/<githubUsername>` 경로와 매핑됩니다. 예를 들어 `githubUsername`이 `whoisyourbias`면 풀이를 `submissions/whoisyourbias/...` 아래에 둡니다.
 
 `slug`, LeetCode 내부 ID, 예전 `solutions/<id>/` 경로는 공식 제출 경로로 쓰지 않습니다.
