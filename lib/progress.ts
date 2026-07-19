@@ -1,6 +1,7 @@
-import { buildActivityCalendar, type ActivityCalendarWindow } from "@/lib/activity";
+import { buildActivityCalendar, getSeoulDateKey, type ActivityCalendarWindow } from "@/lib/activity";
 import { catalog, getList, getListProblems, getProblem, type CatalogList } from "@/lib/catalog";
 import progressData from "@/data/progress.json";
+import { FIRST_UNSOLVED_PROBLEM_ELEMENT_ID } from "@/lib/user-problem-focus";
 import {
   SubmissionStatus,
   type ActivityDay,
@@ -19,12 +20,20 @@ export type ListProgress = {
   percent: number;
 };
 
+export type DashboardActivityStatus = "active" | "watch" | "idle";
+
 export type UserDashboardRow = User & {
   submissions: Submission[];
   activity: ActivityDay[];
   activityCalendar: ActivityCalendarWindow;
   progress: ListProgress[];
   solvedTotal: number;
+  solvedLast7Days: number;
+  solvedLast35Days: number;
+  daysSinceLastSolved: number | null;
+  activityStatus: DashboardActivityStatus;
+  activityStatusLabel: string;
+  activityStatusRank: number;
   reviewingTotal: number;
   skippedTotal: number;
   recentSolvedAt: string | null;
@@ -43,9 +52,62 @@ export type RecentSolvedSubmission = {
   githubUrl?: string;
 };
 
+export type FirstUnsolvedProblemTarget = {
+  elementId: typeof FIRST_UNSOLVED_PROBLEM_ELEMENT_ID;
+  listKey: string;
+  problemSlug: string;
+};
+
 type RecentSubmissionUser = Pick<User, "id" | "displayName" | "githubUsername"> & {
   submissions: Submission[];
 };
+
+function getDateKeyTime(dateKey: string) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return Date.UTC(year, month - 1, day);
+}
+
+function getDaysSinceDateKey(dateKey: string | null, endDate: Date | string) {
+  if (!dateKey) {
+    return null;
+  }
+
+  const endDateKey = getSeoulDateKey(endDate);
+  const days = (getDateKeyTime(endDateKey) - getDateKeyTime(dateKey)) / (24 * 60 * 60 * 1000);
+  return Math.max(0, Math.floor(days));
+}
+
+function getDashboardActivityStatus(daysSinceLastSolved: number | null): DashboardActivityStatus {
+  if (daysSinceLastSolved === null || daysSinceLastSolved > 35) {
+    return "idle";
+  }
+
+  if (daysSinceLastSolved > 7) {
+    return "watch";
+  }
+
+  return "active";
+}
+
+function getDashboardActivityStatusLabel(status: DashboardActivityStatus) {
+  const labels: Record<DashboardActivityStatus, string> = {
+    active: "활발",
+    watch: "주의",
+    idle: "휴면",
+  };
+
+  return labels[status];
+}
+
+function getDashboardActivityStatusRank(status: DashboardActivityStatus) {
+  const ranks: Record<DashboardActivityStatus, number> = {
+    active: 3,
+    watch: 2,
+    idle: 1,
+  };
+
+  return ranks[status];
+}
 
 function summarizeList(list: CatalogList, submissions: Map<string, Submission>): ListProgress {
   const items = getListProblems(list);
@@ -79,7 +141,7 @@ function summarizeList(list: CatalogList, submissions: Map<string, Submission>):
   };
 }
 
-export function buildRecentSolvedSubmissions(users: RecentSubmissionUser[], limit = 5): RecentSolvedSubmission[] {
+export function buildRecentSolvedSubmissions(users: RecentSubmissionUser[], limit = 10): RecentSolvedSubmission[] {
   return users
     .flatMap((user) =>
       user.submissions
@@ -113,10 +175,15 @@ export function buildRecentSolvedSubmissions(users: RecentSubmissionUser[], limi
 
 function buildUserRow(
   user: User & { submissions: Submission[]; activity?: ActivityDay[] },
+  endDate: Date | string = new Date(),
 ): UserDashboardRow {
   const submissions = new Map(user.submissions.map((submission) => [submission.problemSlug, submission]));
   const progress = catalog.lists.map((list) => summarizeList(list, submissions));
   const activity = user.activity ?? [];
+  const activityCalendar = buildActivityCalendar(activity, 35, endDate);
+  const recentActivityCalendar = buildActivityCalendar(activity, 7, endDate);
+  const daysSinceLastSolved = getDaysSinceDateKey(activityCalendar.lastActiveDate, endDate);
+  const activityStatus = getDashboardActivityStatus(daysSinceLastSolved);
   const recentSolvedAt =
     user.submissions
       .filter((submission) => submission.status === SubmissionStatus.SOLVED && submission.solvedAt)
@@ -125,9 +192,15 @@ function buildUserRow(
   return {
     ...user,
     activity,
-    activityCalendar: buildActivityCalendar(activity, 35),
+    activityCalendar,
     progress,
     solvedTotal: user.submissions.filter((submission) => submission.status === SubmissionStatus.SOLVED).length,
+    solvedLast7Days: recentActivityCalendar.totalSolved,
+    solvedLast35Days: activityCalendar.totalSolved,
+    daysSinceLastSolved,
+    activityStatus,
+    activityStatusLabel: getDashboardActivityStatusLabel(activityStatus),
+    activityStatusRank: getDashboardActivityStatusRank(activityStatus),
     reviewingTotal: user.submissions.filter((submission) => submission.status === SubmissionStatus.REVIEWING).length,
     skippedTotal: user.submissions.filter((submission) => submission.status === SubmissionStatus.SKIPPED).length,
     recentSolvedAt,
@@ -142,11 +215,20 @@ export async function listStaticUsers() {
 
 export async function getDashboardData() {
   const users = data.users.filter((user) => user.active);
+  const endDate = new Date();
 
-  const rows = users.map((user) => buildUserRow(user));
+  const rows = users.map((user) => buildUserRow(user, endDate));
   const totalUsers = rows.length;
   const allSubmissions = rows.flatMap((row) => row.submissions);
   const solvedSubmissions = allSubmissions.filter((submission) => submission.status === SubmissionStatus.SOLVED);
+  const totalTrackedProgress = rows.reduce(
+    (sum, row) => sum + row.progress.reduce((progressSum, progress) => progressSum + progress.total, 0),
+    0,
+  );
+  const solvedTrackedProgress = rows.reduce(
+    (sum, row) => sum + row.progress.reduce((progressSum, progress) => progressSum + progress.solved, 0),
+    0,
+  );
 
   const listAverages = catalog.lists.map((list) => {
     const perUser = rows.map((row) => row.progress.find((progress) => progress.key === list.key)?.percent ?? 0);
@@ -165,11 +247,14 @@ export async function getDashboardData() {
       users: totalUsers,
       lists: catalog.lists.length,
       uniqueProblems: catalog.problems.length,
+      overallCompletionPercent: totalTrackedProgress === 0 ? 0 : (solvedTrackedProgress / totalTrackedProgress) * 100,
       solvedSubmissions: solvedSubmissions.length,
       solvedLastSevenDays,
+      solvedLast7Days: rows.reduce((sum, row) => sum + row.solvedLast7Days, 0),
+      solvedLast35Days: rows.reduce((sum, row) => sum + row.solvedLast35Days, 0),
     },
     listAverages,
-    recentSolvedSubmissions: buildRecentSolvedSubmissions(rows, 5),
+    recentSolvedSubmissions: buildRecentSolvedSubmissions(rows),
     generatedAt: data.generatedAt,
   };
 }
@@ -201,8 +286,33 @@ export async function getUserDetail(userId: string) {
       submission: submissions.get(item.slug) ?? null,
     })),
   }));
+  let firstUnsolvedProblemTarget: FirstUnsolvedProblemTarget | null = null;
 
-  return { user, lists, activityCalendar: buildActivityCalendar(user.activity ?? [], 90) };
+  for (const list of lists) {
+    for (const item of list.items) {
+      if (item.submission?.status === SubmissionStatus.SOLVED) {
+        continue;
+      }
+
+      firstUnsolvedProblemTarget = {
+        elementId: FIRST_UNSOLVED_PROBLEM_ELEMENT_ID,
+        listKey: list.key,
+        problemSlug: item.slug,
+      };
+      break;
+    }
+
+    if (firstUnsolvedProblemTarget) {
+      break;
+    }
+  }
+
+  return {
+    user,
+    lists,
+    activityCalendar: buildActivityCalendar(user.activity ?? [], 90),
+    firstUnsolvedProblemTarget,
+  };
 }
 
 export async function getListDetail(listKey: string) {

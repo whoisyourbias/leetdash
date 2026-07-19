@@ -1,3 +1,5 @@
+import { FIRST_UNSOLVED_PROBLEM_HASH } from "@/lib/user-problem-focus";
+
 type StorageLike = Pick<Storage, "getItem" | "removeItem" | "setItem">;
 
 export const DASHBOARD_VIEWER_STORAGE_KEY = "leetcode-progress-radar:dashboard-viewer-id";
@@ -10,7 +12,7 @@ export function getDashboardViewerProfilePath<T extends { id: string }>(
     return null;
   }
 
-  return `/users/${viewerId}`;
+  return `/users/${viewerId}${FIRST_UNSOLVED_PROBLEM_HASH}`;
 }
 
 export function getStoredDashboardViewerId(storage: Pick<StorageLike, "getItem">): string | null {

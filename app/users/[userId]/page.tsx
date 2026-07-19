@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { ActivityCalendar } from "@/app/components/activity-calendar";
+import { FirstUnsolvedProblemScroller } from "@/app/components/first-unsolved-problem-scroller";
 import { getProblemLeetCodeUrl } from "@/lib/catalog";
 import { difficultyLabel, formatDate, formatDateKey, formatPercent, statusLabel } from "@/lib/format";
 import { getGithubProfileUrl } from "@/lib/github";
@@ -27,9 +28,13 @@ export default async function UserDetailPage({ params }: { params: Promise<{ use
   }
 
   const { user, lists, activityCalendar } = detail;
+  const { firstUnsolvedProblemTarget } = detail;
 
   return (
     <div className="page">
+      {firstUnsolvedProblemTarget ? (
+        <FirstUnsolvedProblemScroller targetId={firstUnsolvedProblemTarget.elementId} />
+      ) : null}
       <div className="page-header">
         <div>
           <p className="eyebrow">
@@ -104,46 +109,56 @@ export default async function UserDetailPage({ params }: { params: Promise<{ use
                 </tr>
               </thead>
               <tbody>
-                {list.items.map((item) => (
-                  <tr key={`${list.key}-${item.slug}`}>
-                    <td className="mono">{item.order}</td>
-                    <td>
-                      <div className="problem-title">{formatProblemTitle(item.problem.title)}</div>
-                      <div className="muted mono">{formatCatalogSection(item.section)}</div>
-                    </td>
-                    <td>
-                      <span className="badge neutral">{difficultyLabel(item.problem.difficulty)}</span>
-                    </td>
-                    <td>
-                      {item.submission ? (
-                        <>
-                          <span className={`badge ${item.submission.status.toLowerCase()}`}>
-                            {statusLabel(item.submission.status)}
-                          </span>
-                          {item.submission.notes ? <div className="muted">{item.submission.notes}</div> : null}
-                        </>
-                      ) : (
-                        <span className="badge neutral">시작 전</span>
-                      )}
-                    </td>
-                    <td className="mono">{item.submission?.language ?? "-"}</td>
-                    <td>{formatDate(item.submission?.solvedAt)}</td>
-                    <td>
-                      <div className="actions">
-                        <a className="button" href={getProblemLeetCodeUrl(item.slug)} target="_blank" rel="noreferrer">
-                          <ExternalLink size={16} aria-hidden="true" />
-                          LeetCode
-                        </a>
-                        {item.submission?.githubUrl ? (
-                          <a className="button" href={item.submission.githubUrl} target="_blank" rel="noreferrer">
+                {list.items.map((item) => {
+                  const isFirstUnsolvedProblem =
+                    firstUnsolvedProblemTarget?.listKey === list.key &&
+                    firstUnsolvedProblemTarget.problemSlug === item.slug;
+
+                  return (
+                    <tr
+                      className={isFirstUnsolvedProblem ? "problem-row-target" : undefined}
+                      id={isFirstUnsolvedProblem ? firstUnsolvedProblemTarget.elementId : undefined}
+                      key={`${list.key}-${item.slug}`}
+                    >
+                      <td className="mono">{item.order}</td>
+                      <td>
+                        <div className="problem-title">{formatProblemTitle(item.problem.title)}</div>
+                        <div className="muted mono">{formatCatalogSection(item.section)}</div>
+                      </td>
+                      <td>
+                        <span className="badge neutral">{difficultyLabel(item.problem.difficulty)}</span>
+                      </td>
+                      <td>
+                        {item.submission ? (
+                          <>
+                            <span className={`badge ${item.submission.status.toLowerCase()}`}>
+                              {statusLabel(item.submission.status)}
+                            </span>
+                            {item.submission.notes ? <div className="muted">{item.submission.notes}</div> : null}
+                          </>
+                        ) : (
+                          <span className="badge neutral">시작 전</span>
+                        )}
+                      </td>
+                      <td className="mono">{item.submission?.language ?? "-"}</td>
+                      <td>{formatDate(item.submission?.solvedAt)}</td>
+                      <td>
+                        <div className="actions">
+                          <a className="button" href={getProblemLeetCodeUrl(item.slug)} target="_blank" rel="noreferrer">
                             <ExternalLink size={16} aria-hidden="true" />
-                            GitHub
+                            LeetCode
                           </a>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          {item.submission?.githubUrl ? (
+                            <a className="button" href={item.submission.githubUrl} target="_blank" rel="noreferrer">
+                              <ExternalLink size={16} aria-hidden="true" />
+                              GitHub
+                            </a>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

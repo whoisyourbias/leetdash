@@ -229,6 +229,52 @@ button.primary:hover {
   line-height: 1.2;
 }
 
+.dashboard-tabs {
+  display: grid;
+  gap: 18px;
+}
+
+.dashboard-tab-list {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 6px;
+  box-shadow: var(--shadow);
+}
+
+.dashboard-tab-button {
+  align-items: flex-start;
+  border-color: transparent;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+  min-height: 58px;
+  padding: 9px 11px;
+}
+
+.dashboard-tab-button[aria-selected="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.dashboard-tab-button small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 640;
+}
+
+.dashboard-tab-button[aria-selected="true"] small {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.dashboard-tab-panel {
+  min-width: 0;
+}
+
 .panel {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -337,6 +383,22 @@ th {
   font-size: 12px;
   font-weight: 760;
   text-transform: uppercase;
+}
+
+.table-sort-button {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font-size: 12px;
+  gap: 6px;
+  min-height: 24px;
+  padding: 0;
+  text-transform: uppercase;
+}
+
+.table-sort-button:hover {
+  border-color: transparent;
+  color: var(--accent-strong);
 }
 
 tr:last-child td {
@@ -513,6 +575,18 @@ tr:last-child td {
   text-transform: uppercase;
 }
 
+.problem-row-target {
+  scroll-margin-top: 96px;
+}
+
+.problem-row-target:target td {
+  background: #f0faf8;
+}
+
+.problem-row-target:target td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
 .activity-panel {
   overflow: hidden;
 }
@@ -624,6 +698,10 @@ tr:last-child td {
   .list-grid,
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-tab-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .panel-header {

@@ -1,0 +1,2 @@
+export const FIRST_UNSOLVED_PROBLEM_ELEMENT_ID = "first-unsolved-problem";
+export const FIRST_UNSOLVED_PROBLEM_HASH = `#${FIRST_UNSOLVED_PROBLEM_ELEMENT_ID}`;

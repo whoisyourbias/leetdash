@@ -14,7 +14,7 @@ const users = [
 
 describe("dashboard viewer preference", () => {
   it("returns a profile path only for a registered stored viewer", () => {
-    expect(getDashboardViewerProfilePath(users, "grace")).toBe("/users/grace");
+    expect(getDashboardViewerProfilePath(users, "grace")).toBe("/users/grace#first-unsolved-problem");
     expect(getDashboardViewerProfilePath(users, "unknown")).toBeNull();
     expect(getDashboardViewerProfilePath(users, null)).toBeNull();
   });
