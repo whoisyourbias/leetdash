@@ -12,7 +12,7 @@ async function writeJson(filePath: string, value: unknown) {
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
-async function runGit(repo: string, args: string[], env: NodeJS.ProcessEnv = {}) {
+async function runGit(repo: string, args: string[], env: Partial<Record<string, string>> = {}) {
   await execFileAsync("git", args, {
     cwd: repo,
     env: { ...process.env, ...env },
