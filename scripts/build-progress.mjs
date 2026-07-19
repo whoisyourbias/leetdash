@@ -115,7 +115,7 @@ async function getGitAddedAt(relativePath) {
   try {
     const { stdout } = await execFileAsync(
       "git",
-      ["log", "--diff-filter=A", "--follow", "--format=%cI", "--", relativePath],
+      ["log", "--diff-filter=A", "--format=%cI", "--", relativePath],
       { cwd: repoRoot, maxBuffer: 1024 * 1024 },
     );
     const timestamps = stdout.trim().split(/\r?\n/).filter(Boolean);
