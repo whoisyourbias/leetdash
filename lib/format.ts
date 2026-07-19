@@ -31,6 +31,19 @@ export function formatDate(value: Date | string | null | undefined) {
   }).format(date);
 }
 
+export function formatDateKey(value: string | null | undefined) {
+  if (!value) {
+    return "-";
+  }
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(`${value}T00:00:00+09:00`));
+}
+
 export function statusLabel(status: SubmissionStatus | string) {
   const labels: Record<string, string> = {
     SOLVED: "풀이 완료",

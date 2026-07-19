@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Users } from "lucide-react";
 import { ActivityCalendar } from "@/app/components/activity-calendar";
 import { catalog } from "@/lib/catalog";
-import { formatDate, formatDateTime, formatPercent } from "@/lib/format";
+import { formatDateKey, formatDateTime, formatPercent } from "@/lib/format";
 import { formatCatalogListTitle } from "@/lib/i18n";
 import { getDashboardData } from "@/lib/progress";
 
@@ -112,7 +112,7 @@ export default async function DashboardPage() {
                   <span>
                     최근 35일 <strong>{user.activityCalendar.totalSolved}</strong>개
                   </span>
-                  <span>최근 활동 {formatDate(user.activityCalendar.lastActiveDate)}</span>
+                  <span>최근 활동 {formatDateKey(user.activityCalendar.lastActiveDate)}</span>
                 </div>
               </div>
             ))}

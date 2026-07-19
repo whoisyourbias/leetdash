@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { ActivityCalendar } from "@/app/components/activity-calendar";
 import { getProblemLeetCodeUrl } from "@/lib/catalog";
-import { difficultyLabel, formatDate, formatPercent, statusLabel } from "@/lib/format";
+import { difficultyLabel, formatDate, formatDateKey, formatPercent, statusLabel } from "@/lib/format";
 import { formatCatalogListTitle, formatCatalogSection, formatProblemTitle } from "@/lib/i18n";
 import { getUserDetail, listStaticUsers } from "@/lib/progress";
 
@@ -66,7 +66,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ use
             <span>
               최근 90일 <strong>{activityCalendar.totalSolved}</strong>개
             </span>
-            <span>최근 활동 {formatDate(activityCalendar.lastActiveDate)}</span>
+            <span>최근 활동 {formatDateKey(activityCalendar.lastActiveDate)}</span>
           </div>
         </div>
         <div className="activity-detail-calendar">

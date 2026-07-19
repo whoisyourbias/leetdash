@@ -167,6 +167,8 @@ describe("build-progress", () => {
     await mkdir(path.join(repo, "data"), { recursive: true });
     await mkdir(path.join(repo, "submissions", "ada", "top-interview-easy", "546"), { recursive: true });
     await mkdir(path.join(repo, "submissions", "ada", "top-interview-easy", "721"), { recursive: true });
+    await mkdir(path.join(repo, "submissions", "ada", "top-interview-easy", "3"), { recursive: true });
+    await mkdir(path.join(repo, "submissions", "ada", "top-interview-easy", "15"), { recursive: true });
     await mkdir(path.join(repo, "submissions", "ada", "leetcode-75", "1768"), { recursive: true });
 
     await runGit(repo, ["init"]);
@@ -176,6 +178,13 @@ describe("build-progress", () => {
     await writeJson(path.join(repo, "data", "problem-catalog.json"), {
       problems: [
         { leetcodeId: 1, slug: "two-sum", title: "Two Sum", difficulty: "easy" },
+        {
+          leetcodeId: 3,
+          slug: "longest-substring-without-repeating-characters",
+          title: "Longest Substring Without Repeating Characters",
+          difficulty: "medium",
+        },
+        { leetcodeId: 15, slug: "3sum", title: "3Sum", difficulty: "medium" },
         { leetcodeId: 20, slug: "valid-parentheses", title: "Valid Parentheses", difficulty: "easy" },
         {
           leetcodeId: 1768,
@@ -190,6 +199,13 @@ describe("build-progress", () => {
           items: [
             { slug: "two-sum", order: 1, section: "Array", submissionKey: "546" },
             { slug: "valid-parentheses", order: 2, section: "Others", submissionKey: "721" },
+            {
+              slug: "longest-substring-without-repeating-characters",
+              order: 3,
+              section: "String",
+              submissionKey: "3",
+            },
+            { slug: "3sum", order: 4, section: "Array", submissionKey: "15" },
           ],
         },
         {
@@ -206,6 +222,12 @@ describe("build-progress", () => {
     await commitAll(repo, "add two sum", "2026-07-17T15:30:00.000Z");
 
     await writeFile(path.join(repo, "submissions", "ada", "top-interview-easy", "721", "Solution.java"), "// solved\n");
+    await writeJson(path.join(repo, "submissions", "ada", "top-interview-easy", "3", "meta.json"), {
+      status: "skipped",
+    });
+    await writeJson(path.join(repo, "submissions", "ada", "top-interview-easy", "15", "meta.json"), {
+      status: "solved",
+    });
     await writeJson(path.join(repo, "submissions", "ada", "leetcode-75", "1768", "meta.json"), {
       status: "reviewing",
       notes: "Does not count as solved activity.",
@@ -221,8 +243,9 @@ describe("build-progress", () => {
     expect(progress.users[0].activity).toEqual([
       {
         date: "2026-07-18",
-        solved: 2,
+        solved: 3,
         submissions: [
+          { problemSlug: "3sum", sourceKey: "top-interview-easy", submissionKey: "15" },
           { problemSlug: "two-sum", sourceKey: "top-interview-easy", submissionKey: "546" },
           { problemSlug: "valid-parentheses", sourceKey: "top-interview-easy", submissionKey: "721" },
         ],

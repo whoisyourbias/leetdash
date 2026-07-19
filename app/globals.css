@@ -43,6 +43,17 @@ input {
   font: inherit;
 }
 
+.sr-only {
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: 1px;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
 .shell-header {
   align-items: center;
   background: rgba(255, 255, 255, 0.92);
