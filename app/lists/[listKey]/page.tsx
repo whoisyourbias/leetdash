@@ -1,8 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ListUsersTable } from "@/app/components/list-users-table";
 import { catalog } from "@/lib/catalog";
-import { formatPercent } from "@/lib/format";
-import { getGithubProfileUrl } from "@/lib/github";
 import { formatCatalogListTitle } from "@/lib/i18n";
 import { getListDetail } from "@/lib/progress";
 
@@ -21,6 +19,12 @@ export default async function ListDetailPage({ params }: { params: Promise<{ lis
 
   const { list, users } = detail;
   const displayTitle = formatCatalogListTitle(list.title);
+  const tableUsers = users.map((user) => ({
+    id: user.id,
+    displayName: user.displayName,
+    githubUsername: user.githubUsername,
+    progress: user.progress,
+  }));
 
   return (
     <div className="page">
@@ -41,58 +45,13 @@ export default async function ListDetailPage({ params }: { params: Promise<{ lis
         <div className="panel-header">
           <div>
             <h2>순위</h2>
-            <p className="panel-subtitle">풀이율 기준으로 정렬했습니다</p>
+            <p className="panel-subtitle">진행률 열을 눌러 오름차순과 내림차순으로 정렬합니다</p>
           </div>
         </div>
         {users.length === 0 ? (
           <div className="empty">등록된 활성 사용자가 없습니다.</div>
         ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>순위</th>
-                  <th>사용자</th>
-                  <th>진행률</th>
-                  <th>검토 중</th>
-                  <th>건너뜀</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user, index) => (
-                  <tr key={user.id}>
-                    <td className="mono">{index + 1}</td>
-                    <td className="user-cell">
-                      <Link className="user-name" href={`/users/${user.id}`}>
-                        {user.displayName}
-                      </Link>
-                      <a
-                        className="muted mono github-link"
-                        href={getGithubProfileUrl(user.githubUsername)}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        @{user.githubUsername}
-                      </a>
-                    </td>
-                    <td className="progress-cell">
-                      <div className="progress-meta">
-                        <strong>{formatPercent(user.progress.percent)}</strong>
-                        <span className="mono">
-                          {user.progress.solved}/{user.progress.total}
-                        </span>
-                      </div>
-                      <div className="bar">
-                        <div className="bar-fill" style={{ width: `${Math.min(user.progress.percent, 100)}%` }} />
-                      </div>
-                    </td>
-                    <td className="mono">{user.progress.reviewing}</td>
-                    <td className="mono">{user.progress.skipped}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ListUsersTable users={tableUsers} />
         )}
       </section>
     </div>
