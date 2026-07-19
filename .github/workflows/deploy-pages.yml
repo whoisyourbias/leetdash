@@ -25,25 +25,43 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Detect pull request scope
+        id: pr-scope
+        if: github.event_name == 'pull_request'
+        run: |
+          node scripts/validate-submission-pr.mjs \
+            --base "${{ github.event.pull_request.base.sha }}" \
+            --head "${{ github.event.pull_request.head.sha }}"
+
+      - name: Finish submission-only validation
+        if: github.event_name == 'pull_request' && steps.pr-scope.outputs.submission_only == 'true'
+        run: echo "Submission-only PR validated; skipping application CI."
+
       - name: Setup Node
+        if: github.event_name != 'pull_request' || steps.pr-scope.outputs.submission_only != 'true'
         uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
 
       - name: Install dependencies
+        if: github.event_name != 'pull_request' || steps.pr-scope.outputs.submission_only != 'true'
         run: npm ci
 
       - name: Configure GitHub Pages
+        if: github.event_name != 'pull_request' || steps.pr-scope.outputs.submission_only != 'true'
         uses: actions/configure-pages@v5
 
       - name: Typecheck
+        if: github.event_name != 'pull_request' || steps.pr-scope.outputs.submission_only != 'true'
         run: npm run typecheck
 
       - name: Test
+        if: github.event_name != 'pull_request' || steps.pr-scope.outputs.submission_only != 'true'
         run: npm test
 
       - name: Build static site
+        if: github.event_name != 'pull_request' || steps.pr-scope.outputs.submission_only != 'true'
         run: npm run build
         env:
           NEXT_PUBLIC_BASE_PATH: /leetdash
