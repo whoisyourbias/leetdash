@@ -8,3 +8,4 @@ coverage
 *.log
 *.tsbuildinfo
 .data
+**/.DS_Store
