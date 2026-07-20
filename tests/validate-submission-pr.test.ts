@@ -56,6 +56,31 @@ async function runValidator(repo: string, changedFiles: string) {
   );
 }
 
+async function runValidatorForAuthor(repo: string, author: string, changedFiles: string) {
+  const changedFilesPath = path.join(repo, "changed-files.txt");
+  const outputPath = path.join(repo, "github-output.txt");
+  await writeFile(changedFilesPath, changedFiles);
+
+  return execFileAsync(process.execPath, [scriptPath, "--changed-files", changedFilesPath, "--author", author], {
+    cwd: repo,
+    env: { ...process.env, GITHUB_OUTPUT: outputPath },
+  }).then(
+    async (result) => ({
+      ...result,
+      githubOutput: await readFile(outputPath, "utf8"),
+    }),
+    async (error: NodeJS.ErrnoException & { stdout?: string; stderr?: string }) => {
+      let githubOutput = "";
+      try {
+        githubOutput = await readFile(outputPath, "utf8");
+      } catch {
+        // The script may fail before writing GitHub output.
+      }
+      throw Object.assign(error, { githubOutput });
+    },
+  );
+}
+
 describe("validate-submission-pr", () => {
   it("marks valid participant submission changes as submission-only", async () => {
     const repo = await createRepoFixture();
@@ -91,6 +116,41 @@ describe("validate-submission-pr", () => {
 
     await expect(runValidator(repo, "D\tsubmissions/ada/top-interview-easy/1/Solution.java\n")).rejects.toMatchObject({
       stderr: expect.stringContaining("may add or update files, not delete them"),
+      githubOutput: "submission_only=true\n",
+    });
+  });
+
+  it("accepts submission-only changes under the pull request author path", async () => {
+    const repo = await createRepoFixture();
+
+    const result = await runValidatorForAuthor(repo, "ada", "M\tsubmissions/ada/top-interview-easy/1/Solution.java\n");
+
+    expect(result.stdout).toContain("submission_only=true");
+    expect(result.githubOutput).toBe("submission_only=true\n");
+  });
+
+  it("rejects submission-only changes outside the pull request author path", async () => {
+    const repo = await createRepoFixture();
+    await mkdir(path.join(repo, "submissions", "grace", "top-interview-easy", "1"), { recursive: true });
+    await writeFile(path.join(repo, "submissions", "grace", "top-interview-easy", "1", "Solution.java"), "class Solution {}\n");
+    await writeJson(path.join(repo, "data", "users.json"), {
+      users: [
+        { id: "ada", displayName: "Ada Lovelace", githubUsername: "ada" },
+        { id: "grace", displayName: "Grace Hopper", githubUsername: "grace" },
+      ],
+    });
+
+    await expect(runValidatorForAuthor(repo, "ada", "M\tsubmissions/grace/top-interview-easy/1/Solution.java\n")).rejects.toMatchObject({
+      stderr: expect.stringContaining("belongs to grace, not pull request author ada"),
+      githubOutput: "submission_only=true\n",
+    });
+  });
+
+  it("rejects submission-only changes from an unknown pull request author", async () => {
+    const repo = await createRepoFixture();
+
+    await expect(runValidatorForAuthor(repo, "unknown", "M\tsubmissions/ada/top-interview-easy/1/Solution.java\n")).rejects.toMatchObject({
+      stderr: expect.stringContaining("pull request author unknown is not registered in data/users.json"),
       githubOutput: "submission_only=true\n",
     });
   });

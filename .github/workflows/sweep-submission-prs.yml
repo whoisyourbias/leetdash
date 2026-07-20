@@ -1,0 +1,39 @@
+name: Sweep Submission PRs
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  checks: read
+  contents: write
+  pull-requests: write
+  statuses: read
+
+concurrency:
+  group: sweep-submission-prs
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v6
+        with:
+          ref: master
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: Merge eligible submission PRs
+        run: node scripts/sweep-submission-prs.mjs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SWEEP_BASE_BRANCH: master
+          SWEEP_REQUIRED_CHECK: validate
+          SWEEP_DEPLOY_WORKFLOW: deploy-pages.yml
