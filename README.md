@@ -12,19 +12,25 @@
 
 예를 들어 `https://leetcode.com/problems/plus-one/description/`의 `Plus One`은 LeetCode 문제 번호가 `66`이므로 제출 키도 `66`입니다. Explore URL의 마지막 숫자는 제출 키로 쓰지 않습니다. `1768. Merge Strings Alternately`는 `1768`, `88. Merge Sorted Array`는 `88`입니다.
 
-소규모 LeetCode 스터디 그룹을 위한 진행 현황 대시보드입니다. 참가자는 이 레포에서 각자 브랜치를 만들고 풀이를 추가합니다. 변경 사항이 `master`에 머지되고 사이트가 다시 빌드되면 공식 대시보드가 갱신됩니다.
+소규모 LeetCode 스터디 그룹을 위한 진행 현황 대시보드입니다. 참가자는 이 레포를 Fork한 뒤 자신의 Fork에서 작업 브랜치를 만들어 풀이를 추가합니다. 변경 사항이 PR로 원본 레포의 `master`에 머지되고 사이트가 다시 빌드되면 공식 대시보드가 갱신됩니다.
 
 ## 운영 방식
 
-1. 참가자가 이 레포에서 본인 작업 브랜치를 만듭니다.
-2. 풀이를 `submissions/<githubUsername>/<sourceKey>/<submissionKey>/` 아래에 추가합니다.
-3. PR을 만들고 `master`에 머지합니다.
-4. GitHub Actions가 검증과 정적 빌드를 실행합니다.
-5. `master`에 머지된 경우 GitHub Pages에 대시보드를 배포합니다.
+1. GitHub에서 이 원본 레포를 본인 계정으로 Fork합니다.
+2. Fork한 레포를 clone하고, Fork의 기본 브랜치에서 별도의 작업 브랜치를 만들어 checkout합니다.
+3. 풀이를 `submissions/<githubUsername>/<sourceKey>/<submissionKey>/` 아래에 추가하고 커밋합니다.
+4. 작업 브랜치를 본인의 Fork에 push합니다.
+5. `본인 Fork:작업 브랜치`에서 `원본 레포:master`를 대상으로 PR을 만듭니다.
+6. GitHub Actions가 검증과 정적 빌드를 실행합니다.
+7. PR이 `master`에 머지되면 GitHub Pages에 대시보드가 배포됩니다.
+
+- 참가자는 Fork의 master에 직접 커밋하지 않고 매 작업마다 새 브랜치를 사용합니다. 
+- 원본 레포에 참가자 브랜치를 만들거나 직접 push하지 않습니다. 
+- PR에 충돌이 있을 때만 원본 레포의 최신 `master`를 본인의 작업 브랜치에 반영해 해결합니다.
 
 공개 페이지에는 `master`에 머지된 제출만 반영됩니다. 개인 브랜치는 직접 스캔하지 않습니다.
 
-PR은 `validate` 검증과 리뷰 조건을 통과하면 다른 PR의 GitHub Pages 배포 완료를 기다리지 않고 머지합니다. 저장소는 merge commit만 허용하며, squash merge와 rebase merge는 사용하지 않습니다. 충돌이 있는 PR만 개별적으로 `master`를 반영해 해결합니다.
+PR은 `validate` 검증과 리뷰 조건을 통과하면 다른 PR의 GitHub Pages 배포 완료를 기다리지 않고 머지합니다. 저장소는 merge commit만 허용하며, squash merge와 rebase merge는 사용하지 않습니다.
 
 ## 참가자 등록
 
