@@ -1,6 +1,10 @@
 name: Sweep Submission PRs
 
 on:
+  workflow_run:
+    workflows: ["Deploy GitHub Pages"]
+    types:
+      - completed
   schedule:
     - cron: "17 * * * *"
   workflow_dispatch:
@@ -18,6 +22,7 @@ concurrency:
 
 jobs:
   sweep:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout default branch
