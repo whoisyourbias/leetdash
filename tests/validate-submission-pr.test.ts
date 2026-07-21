@@ -81,6 +81,11 @@ async function runValidatorForAuthor(repo: string, author: string, changedFiles:
   );
 }
 
+async function git(repo: string, args: string[]) {
+  const result = await execFileAsync("git", args, { cwd: repo });
+  return result.stdout.trim();
+}
+
 describe("validate-submission-pr", () => {
   it("marks valid participant submission changes as submission-only", async () => {
     const repo = await createRepoFixture();
@@ -153,5 +158,38 @@ describe("validate-submission-pr", () => {
       stderr: expect.stringContaining("pull request author unknown is not registered in data/users.json"),
       githubOutput: "submission_only=true\n",
     });
+  });
+
+  it("detects submission-only changes from the merge base when the pull request branch is stale", async () => {
+    const repo = await createRepoFixture();
+    await git(repo, ["init"]);
+    await git(repo, ["config", "user.email", "test@example.com"]);
+    await git(repo, ["config", "user.name", "Test User"]);
+    await git(repo, ["add", "."]);
+    await git(repo, ["commit", "-m", "initial"]);
+    const baseBranch = await git(repo, ["branch", "--show-current"]);
+    await git(repo, ["switch", "-c", "submission-pr"]);
+
+    await git(repo, ["switch", baseBranch]);
+    await mkdir(path.join(repo, "app"), { recursive: true });
+    await writeFile(path.join(repo, "app", "page.tsx"), "export default function Page() { return null; }\n");
+    await git(repo, ["add", "."]);
+    await git(repo, ["commit", "-m", "advance base"]);
+    const base = await git(repo, ["rev-parse", "HEAD"]);
+
+    await git(repo, ["switch", "submission-pr"]);
+    await writeFile(path.join(repo, "submissions", "ada", "top-interview-easy", "1", "Solution.java"), "class Solution { int[] twoSum() { return null; } }\n");
+    await git(repo, ["add", "."]);
+    await git(repo, ["commit", "-m", "add submission"]);
+    const head = await git(repo, ["rev-parse", "HEAD"]);
+
+    const outputPath = path.join(repo, "github-output.txt");
+    const result = await execFileAsync(process.execPath, [scriptPath, "--base", base, "--head", head, "--author", "ada"], {
+      cwd: repo,
+      env: { ...process.env, GITHUB_OUTPUT: outputPath },
+    });
+
+    expect(result.stdout).toContain("submission_only=true");
+    expect(await readFile(outputPath, "utf8")).toBe("submission_only=true\n");
   });
 });

@@ -74,7 +74,7 @@ function getChangedFiles({ base, head, changedFilesPath }) {
     throw new Error("Pass --base/--head or --changed-files.");
   }
 
-  const raw = execFileSync("git", ["diff", "--name-status", "--no-renames", "-z", base, head], {
+  const raw = execFileSync("git", ["diff", "--name-status", "--no-renames", "-z", `${base}...${head}`], {
     encoding: "utf8",
     maxBuffer: 1024 * 1024,
   });
