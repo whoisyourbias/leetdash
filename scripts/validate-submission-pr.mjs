@@ -27,7 +27,7 @@ function parseArgs(argv) {
   const args = {};
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
-    if (value === "--base" || value === "--head" || value === "--changed-files") {
+    if (value === "--base" || value === "--head" || value === "--changed-files" || value === "--author") {
       args[value.slice(2)] = argv[index + 1];
       index += 1;
     }
@@ -136,6 +136,11 @@ function findUserForPath(users, filePath) {
   return users.find((user) => filePath.startsWith(`${user.submissionsPath}/`));
 }
 
+function findUserForGithubUsername(users, githubUsername) {
+  const normalized = githubUsername.toLowerCase();
+  return users.find((user) => user.githubUsername.toLowerCase() === normalized);
+}
+
 function isSubmissionArtifactName(filename) {
   const normalized = filename.toLowerCase();
   if (normalized === "readme.md" || normalized === "meta.json") {
@@ -157,6 +162,10 @@ function isParticipantSubmissionPath(filePath) {
   }
 
   return filePath.split("/").length >= 5;
+}
+
+function isAllowedSubmissionStatus(status) {
+  return status === "A" || status === "M" || status === "added" || status === "modified";
 }
 
 function validateMeta(filePath, errors) {
@@ -185,10 +194,17 @@ function validateMeta(filePath, errors) {
   }
 }
 
-function validateSubmissionFiles(changedFiles) {
-  const users = normalizeUsers(readJson("data/users.json"));
-  const targets = getSubmissionTargets(readJson("data/problem-catalog.json"));
+function validateSubmissionFiles(changedFiles, options = {}) {
+  const users = normalizeUsers(options.usersInput ?? readJson("data/users.json"));
+  const targets = getSubmissionTargets(options.catalogInput ?? readJson("data/problem-catalog.json"));
   const errors = [];
+  const authorLogin = options.authorLogin ? String(options.authorLogin) : "";
+  const authorUser = authorLogin ? findUserForGithubUsername(users, authorLogin) : undefined;
+  const checkFileExists = options.checkFileExists ?? true;
+
+  if (authorLogin && !authorUser) {
+    errors.push(`pull request author ${authorLogin} is not registered in data/users.json.`);
+  }
 
   for (const changedFile of changedFiles) {
     const filePath = changedFile.path;
@@ -198,8 +214,13 @@ function validateSubmissionFiles(changedFiles) {
       continue;
     }
 
-    if (changedFile.status.startsWith("D")) {
-      errors.push(`${filePath}: submission-only PRs may add or update files, not delete them.`);
+    if (authorUser && user.githubUsername.toLowerCase() !== authorUser.githubUsername.toLowerCase()) {
+      errors.push(`${filePath}: belongs to ${user.githubUsername}, not pull request author ${authorLogin}.`);
+      continue;
+    }
+
+    if (!isAllowedSubmissionStatus(changedFile.status)) {
+      errors.push(`${filePath}: submission-only PRs may add or update files, not delete them or rename them.`);
       continue;
     }
 
@@ -219,9 +240,9 @@ function validateSubmissionFiles(changedFiles) {
       errors.push(`${filePath}: file must be solution.<supported ext>, README.md, or meta.json.`);
     }
 
-    if (!existsSync(path.join(process.cwd(), filePath))) {
+    if (checkFileExists && !existsSync(path.join(process.cwd(), filePath))) {
       errors.push(`${filePath}: changed file does not exist in the checkout.`);
-    } else if (filename.toLowerCase() === "meta.json") {
+    } else if (checkFileExists && filename.toLowerCase() === "meta.json") {
       validateMeta(filePath, errors);
     }
   }
@@ -267,7 +288,7 @@ function main() {
     return;
   }
 
-  const errors = validateSubmissionFiles(changedFiles);
+  const errors = validateSubmissionFiles(changedFiles, { authorLogin: args.author });
   if (errors.length > 0) {
     console.error("Submission validation failed:");
     for (const error of errors) {

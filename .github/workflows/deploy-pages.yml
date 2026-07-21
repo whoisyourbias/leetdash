@@ -31,7 +31,8 @@ jobs:
         run: |
           node scripts/validate-submission-pr.mjs \
             --base "${{ github.event.pull_request.base.sha }}" \
-            --head "${{ github.event.pull_request.head.sha }}"
+            --head "${{ github.event.pull_request.head.sha }}" \
+            --author "${{ github.event.pull_request.user.login }}"
 
       - name: Finish submission-only validation
         if: github.event_name == 'pull_request' && steps.pr-scope.outputs.submission_only == 'true'
@@ -69,17 +70,17 @@ jobs:
           BRANCH: master
 
       - name: Disable Jekyll
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         run: touch out/.nojekyll
 
       - name: Upload Pages artifact
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v4
         with:
           path: out
 
   deploy:
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     needs: validate
     runs-on: ubuntu-latest
     permissions:
