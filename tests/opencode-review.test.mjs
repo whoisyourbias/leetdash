@@ -71,7 +71,9 @@ function reviewOptions(overrides = {}) {
       readFile: async () => "class Solution {}",
       catalog,
       changedFiles: [{ status: "A", path: firstPath }],
-      headSha: "head-sha-123",
+      serverUrl: "https://github.example",
+      headRepository: "fork-user/leetdash",
+      headSha: "a".repeat(40),
       pullNumber: 42,
       runUrl: "https://github.example/actions/runs/9",
       mascotUrl,
@@ -130,6 +132,9 @@ describe("reviewPullRequest", () => {
     expect(result.results).toMatchObject([{ path: firstPath, status: "reviewed", contentKey: reviewContentKey(source) }]);
     expect(mutations[0].commentId).toBe(32);
     expect(mutations[0].body).toContain(reviewContentMarker(reviewContentKey(source)));
+    expect(mutations[0].body).toContain(
+      `https://github.example/fork-user/leetdash/blob/${"a".repeat(40)}/${firstPath}`,
+    );
   });
 
   it("reviews legacy or warning comments that have no successful content digest", async () => {
@@ -207,7 +212,9 @@ describe("reviewPullRequest", () => {
       readFile: async (filePath) => sources.get(filePath),
       catalog,
       changedFiles: [{ status: "A", path: firstPath }, { status: "M", path: secondPath }],
-      headSha: "head-sha-123",
+      serverUrl: "https://github.example",
+      headRepository: "fork-user/leetdash",
+      headSha: "a".repeat(40),
       pullNumber: 42,
       runUrl: "https://github.example/actions/runs/9",
       mascotUrl,
@@ -217,7 +224,7 @@ describe("reviewPullRequest", () => {
     });
 
     expect(checks).toHaveLength(1);
-    expect(checks[0].headSha).toBe("head-sha-123");
+    expect(checks[0].headSha).toBe("a".repeat(40));
     expect(reviews).toHaveLength(2);
     expect(reviews[0]).toMatchObject({ model: "opencode-go/kimi-k2.7-code", apiKey: "test-api-key" });
     expect(reviews.map(({ prompt }) => prompt.includes("class Solution { int first; }"))).toEqual([true, false]);
@@ -259,10 +266,32 @@ describe("reviewPullRequest", () => {
     expect(reviewCalls).toHaveLength(2);
     expect(result.results.map(({ status }) => status)).toEqual(["warning", "reviewed"]);
     expect(comments.some(({ body }) => body.includes(firstPath) && body.includes("찰싹봇 리뷰 경고"))).toBe(true);
+    expect(comments.find(({ body }) => body.includes(firstPath))?.body).toContain(
+      `https://github.example/fork-user/leetdash/blob/${"a".repeat(40)}/${firstPath}`,
+    );
     expect(comments.some(({ body }) => body.includes(secondPath) && body.includes("찰싹봇의 코드 리뷰"))).toBe(true);
     expect(result.markdown).toContain("리뷰 완료: 1개");
     expect(result.markdown).toContain("리뷰 경고: 1개");
     expect(result.markdown).toContain("댓글 전달 실패: 0개");
+    expect(completed.at(-1)).toMatchObject({ conclusion: "success" });
+  });
+
+  it("turns invalid source permalink configuration into a sanitized file warning", async () => {
+    const { options, comments, completed } = reviewOptions({ serverUrl: "http://github.example" });
+
+    const result = await reviewPullRequest(options);
+
+    expect(result.results).toMatchObject([{
+      path: firstPath,
+      status: "warning",
+      failure: {
+        stage: "catalog-resolve",
+        reason: "CATALOG_MAPPING_FAILED",
+        detail: "Review source link configuration is invalid.",
+      },
+    }]);
+    expect(comments[0].body).toContain("찰싹봇 리뷰 경고");
+    expect(comments[0].body).not.toContain("http://github.example");
     expect(completed.at(-1)).toMatchObject({ conclusion: "success" });
   });
 
@@ -375,7 +404,7 @@ describe("reviewPullRequest", () => {
 
     const output = [...comments.map(({ body }) => body), completed[0].summary].join("\n");
     expect(output).toContain(requiredValue);
-    expect(output).toContain("커밋: head-sha-123");
+    expect(output).toContain(`커밋: ${"a".repeat(40)}`);
     expect(output).toContain(firstPath);
     expect(output).toContain("https://github.example/actions/runs/9");
   });
@@ -805,23 +834,25 @@ describe("opencode-review CLI", () => {
 
   it("derives applicability from GitHub and reads submitted source only at the exact head SHA", async () => {
     const checks = [];
+    const comments = [];
     const sourceReads = [];
     const prompts = [];
     const source = "class Solution { int fetchedAsData; }";
+    const headSha = "b".repeat(40);
     const githubClient = {
       createCheck: async (value) => { checks.push(value); return { id: 17 }; },
       completeCheck: async (value) => { checks.push(value); },
       listManagedReviewComments: async () => [],
-      upsertReviewComment: async () => {},
+      upsertReviewComment: async (value) => { comments.push(value); },
       deleteReviewComment: async () => {},
-      getPullRequest: async () => ({ number: 42, changed_files: 1, user: { login: "ada" }, base: { sha: "base-sha" }, head: { sha: "head-sha", repo: { full_name: "fork-user/leetdash" } } }),
+      getPullRequest: async () => ({ number: 42, changed_files: 1, user: { login: "ada" }, base: { sha: "base-sha" }, head: { sha: headSha, repo: { full_name: "fork-user/leetdash" } } }),
       listPullRequestFiles: async () => [{ status: "modified", filename: firstPath }],
       getFileContent: async (value) => { sourceReads.push(value); return source; },
     };
 
     const outcome = await main({
       mascotUrl,
-      argv: ["--base", "base-sha", "--head", "head-sha", "--pull-number", "42"],
+      argv: ["--base", "base-sha", "--head", headSha, "--pull-number", "42"],
       env: {
         GITHUB_REPOSITORY: "example/leetdash",
         GITHUB_TOKEN: "github-secret",
@@ -837,9 +868,10 @@ describe("opencode-review CLI", () => {
     });
 
     expect(outcome.exitCode).toBe(0);
-    expect(sourceReads).toEqual([{ path: firstPath, ref: "head-sha", repository: "fork-user/leetdash" }]);
+    expect(sourceReads).toEqual([{ path: firstPath, ref: headSha, repository: "fork-user/leetdash" }]);
     expect(prompts[0]).toContain(source);
-    expect(checks[0]).toMatchObject({ headSha: "head-sha" });
+    expect(comments[0].body).toContain(`https://github.example/fork-user/leetdash/blob/${headSha}/${firstPath}`);
+    expect(checks[0]).toMatchObject({ headSha });
     expect(checks.at(-1)).toMatchObject({ conclusion: "success" });
   });
 

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildMascotUrl,
   buildReviewPrompt,
+  buildSourcePermalink,
   parseSubmissionSolutionPath,
   parseManagedReviewMarker,
   renderReviewFileComment,
@@ -127,6 +128,41 @@ describe("managed review markers and branding", () => {
     })).toBe(`https://github.com/whoisyourbias/leetdash/raw/${baseSha}/public/chalsakbot.png`);
   });
 
+  it("builds a commit-pinned source permalink for a fork repository", () => {
+    const headSha = "a".repeat(40);
+
+    expect(buildSourcePermalink({
+      serverUrl: "https://github.example/",
+      repository: "fork-user/leetdash",
+      headSha,
+      path: "submissions/ada/problem set/1/solution #1.java",
+    })).toBe(
+      `https://github.example/fork-user/leetdash/blob/${headSha}/submissions/ada/problem%20set/1/solution%20%231.java`,
+    );
+  });
+
+  it.each([
+    { serverUrl: "not a URL" },
+    { serverUrl: "http://github.example" },
+    { serverUrl: "https://user:pass@github.example" },
+    { repository: "owner/repo/extra" },
+    { headSha: "head-sha" },
+    { path: "../solution.java" },
+    { path: "folder//solution.java" },
+    { path: "folder\\solution.java" },
+  ])("rejects unsafe source permalink input", (invalid) => {
+    expect(() => buildSourcePermalink({
+      serverUrl: "https://github.example",
+      repository: "fork-user/leetdash",
+      headSha: "a".repeat(40),
+      path: "submissions/ada/1/solution.java",
+      ...invalid,
+    })).toThrowError(expect.objectContaining({
+      stage: "catalog-resolve",
+      reason: "CATALOG_MAPPING_FAILED",
+    }));
+  });
+
   it.each([
     { serverUrl: "http://github.com", repository: "whoisyourbias/leetdash", baseSha: "a".repeat(40) },
     { serverUrl: "https://github.com", repository: "invalid", baseSha: "a".repeat(40) },
@@ -144,6 +180,7 @@ describe("managed review markers and branding", () => {
     const shared = {
       path: reviewPath,
       headSha: "head-sha-123",
+      sourceUrl: `https://github.com/example/leetdash/blob/${"b".repeat(40)}/${reviewPath}`,
       runUrl: "https://github.com/example/leetdash/actions/runs/42",
       mascotUrl,
     };
@@ -154,7 +191,7 @@ describe("managed review markers and branding", () => {
     expect(fileBody).toContain("찰싹봇의 코드 리뷰");
     expect(fileBody).toContain('alt="찰싹봇 캐릭터"');
     expect(fileBody).toContain(mascotUrl);
-    expect(fileBody).toContain(reviewPath);
+    expect(fileBody).toContain(`파일: [${reviewPath}](${shared.sourceUrl})`);
     expect(fileBody).toContain("#### 요약");
 
     const warningBody = renderReviewFileWarning({
@@ -169,6 +206,7 @@ describe("managed review markers and branding", () => {
     expect(warningBody.startsWith(`${reviewFileMarker(reviewPath)}\n`)).toBe(true);
     expect(warningBody).not.toContain("leetdash-opencode-review-content:");
     expect(warningBody).toContain("찰싹봇 리뷰 경고");
+    expect(warningBody).toContain(`파일: [${reviewPath}](${shared.sourceUrl})`);
     expect(warningBody).toContain("재시도 가능: 예");
 
     const summary = renderReviewSummary({
@@ -208,13 +246,14 @@ describe("review Markdown rendering", () => {
       mascotUrl: "https://github.com/example/leetdash/raw/abc1234/public/chalsakbot.png",
       headSha: "abc123",
       path: reviewPath,
+      sourceUrl: `https://github.com/example/leetdash/blob/abc123/${reviewPath}`,
       markdown: reviewMarkdown,
       runUrl: "https://github.com/example/leetdash/actions/runs/42",
     });
 
     expect(markdown.startsWith(reviewFileMarker(reviewPath))).toBe(true);
     expect(markdown).toContain("커밋: abc123");
-    expect(markdown).toContain(`파일: ${reviewPath}`);
+    expect(markdown).toContain(`파일: [${reviewPath}](https://github.com/example/leetdash/blob/abc123/${reviewPath})`);
     expect(markdown).toContain(reviewMarkdown);
   });
 
@@ -224,6 +263,7 @@ describe("review Markdown rendering", () => {
       mascotUrl: "https://github.com/example/leetdash/raw/abc1234/public/chalsakbot.png",
       headSha: "abc\n123|def",
       path: "submissions/ada/<script>/1/solution.ts",
+      sourceUrl: "https://example.test/source\n42|x",
       markdown: "#### Summary\n**Readable** & direct.",
       runUrl: "https://example.test/run\n42|x",
     });
@@ -240,6 +280,7 @@ describe("review Markdown rendering", () => {
       mascotUrl: "https://github.com/example/leetdash/raw/abc1234/public/chalsakbot.png",
       headSha: "abc123",
       path: reviewPath,
+      sourceUrl: `https://github.com/example/leetdash/blob/abc123/${reviewPath}`,
       markdown: `#### Summary\n${"x".repeat(70_000)}`,
       runUrl: "https://github.com/example/leetdash/actions/runs/42",
     });
