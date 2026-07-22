@@ -164,6 +164,37 @@ function buildMascotUrl({ serverUrl, repository, baseSha }) {
   return `${parsedServerUrl.origin}${parsedServerUrl.pathname.replace(/\/$/, "")}/${repository}/raw/${encodeURIComponent(baseSha)}/public/chalsakbot.png`;
 }
 
+function buildSourcePermalink({ serverUrl, repository, headSha, path }) {
+  let parsedServerUrl;
+  try {
+    parsedServerUrl = new URL(serverUrl);
+  } catch {
+    parsedServerUrl = undefined;
+  }
+  const segments = typeof path === "string" ? path.split("/") : [];
+  if (
+    !parsedServerUrl
+    || parsedServerUrl.protocol !== "https:"
+    || parsedServerUrl.username
+    || parsedServerUrl.password
+    || typeof repository !== "string"
+    || !/^[^/\s]+\/[^/\s]+$/.test(repository)
+    || typeof headSha !== "string"
+    || !/^[a-f0-9]{7,64}$/i.test(headSha)
+    || segments.length === 0
+    || segments.some((segment) => !segment || segment === "." || segment === ".." || segment.includes("\\"))
+  ) {
+    throw new ReviewFailure({
+      stage: "catalog-resolve",
+      reason: "CATALOG_MAPPING_FAILED",
+      detail: "Review source link configuration is invalid.",
+    });
+  }
+  const serverPrefix = `${parsedServerUrl.origin}${parsedServerUrl.pathname.replace(/\/$/, "")}`;
+  const encodedPath = segments.map((segment) => encodeURIComponent(segment)).join("/");
+  return `${serverPrefix}/${repository}/blob/${encodeURIComponent(headSha)}/${encodedPath}`;
+}
+
 function brandedHeader({ mascotUrl, title }) {
   return [
     `<img src="${markdownText(mascotUrl)}" width="72" alt="찰싹봇 캐릭터" align="left">`,
@@ -184,12 +215,12 @@ function warningLines(failure) {
   return lines;
 }
 
-function renderReviewFileComment({ path, contentKey, headSha, runUrl, mascotUrl, markdown }) {
+function renderReviewFileComment({ path, sourceUrl, contentKey, headSha, runUrl, mascotUrl, markdown }) {
   return limitComment([
     reviewFileMarker(path),
     reviewContentMarker(contentKey),
     ...brandedHeader({ mascotUrl, title: "찰싹봇의 코드 리뷰" }),
-    `파일: ${markdownText(path)}`,
+    `파일: [${markdownText(path)}](${markdownText(sourceUrl)})`,
     `커밋: ${markdownText(headSha)}`,
     `워크플로: ${markdownText(runUrl)}`,
     "",
@@ -197,11 +228,11 @@ function renderReviewFileComment({ path, contentKey, headSha, runUrl, mascotUrl,
   ].join("\n"));
 }
 
-function renderReviewFileWarning({ path, headSha, runUrl, mascotUrl, failure }) {
+function renderReviewFileWarning({ path, sourceUrl, headSha, runUrl, mascotUrl, failure }) {
   return limitComment([
     reviewFileMarker(path),
     ...brandedHeader({ mascotUrl, title: "찰싹봇 리뷰 경고" }),
-    `파일: ${markdownText(path)}`,
+    `파일: [${markdownText(path)}](${markdownText(sourceUrl)})`,
     `커밋: ${markdownText(headSha)}`,
     ...warningLines(failure),
     `워크플로: ${markdownText(runUrl)}`,
@@ -246,6 +277,7 @@ export {
   ReviewFailure,
   buildMascotUrl,
   buildReviewPrompt,
+  buildSourcePermalink,
   parseManagedReviewMarker,
   parseSubmissionSolutionPath,
   renderReviewFileComment,
