@@ -5,7 +5,8 @@ const openCodeChatCompletionsUrl = "https://opencode.ai/zen/go/v1/chat/completio
 const openCodeConfiguredModel = "opencode-go/kimi-k2.7-code";
 const openCodeApiModel = "kimi-k2.7-code";
 const reviewCommentMarker = "<!-- leetdash-opencode-review -->";
-const externalRequestTimeoutMs = 60_000;
+const leetCodeRequestTimeoutMs = 60_000;
+const openCodeRequestTimeoutMs = 180_000;
 
 function extractRequestId(response) {
   const headers = response?.headers;
@@ -82,7 +83,7 @@ class LeetCodeClient {
 
   async fetchQuestion(titleSlug) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), externalRequestTimeoutMs);
+    const timeout = setTimeout(() => controller.abort(), leetCodeRequestTimeoutMs);
     let response;
     try {
       response = await this.fetchImpl(leetCodeGraphqlUrl, {
@@ -159,7 +160,7 @@ class OpenCodeClient {
       timeout = setTimeout(() => {
         reject(requestFailure());
         controller.abort();
-      }, externalRequestTimeoutMs);
+      }, openCodeRequestTimeoutMs);
     });
     try {
       let response;

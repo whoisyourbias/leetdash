@@ -136,7 +136,10 @@ describe("OpenCodeClient", () => {
 
       await vi.advanceTimersByTimeAsync(0);
       expect(vi.getTimerCount()).toBe(1);
-      await vi.advanceTimersByTimeAsync(60_000);
+      await vi.advanceTimersByTimeAsync(179_999);
+      expect(requestSignal.aborted).toBe(false);
+      expect(vi.getTimerCount()).toBe(1);
+      await vi.advanceTimersByTimeAsync(1);
       const failure = await failurePromise;
 
       expect(requestSignal).toBeInstanceOf(AbortSignal);

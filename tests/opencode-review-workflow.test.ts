@@ -37,6 +37,7 @@ describe("trusted OpenCode review workflow", () => {
   it("grants only the permissions and secrets needed by trusted review code", () => {
     const workflow = readWorkflow();
 
+    expect(workflow).toContain("review:\n    timeout-minutes: 45");
     expect(workflow).toContain("permissions:\n      contents: read\n      checks: write\n      pull-requests: write");
     expect(workflow).toContain("GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}");
     expect(workflow).toContain("OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}");
