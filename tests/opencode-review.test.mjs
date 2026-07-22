@@ -22,33 +22,34 @@ const catalog = {
 const users = {
   users: [{ id: "ada", displayName: "Ada Lovelace", githubUsername: "ada" }],
 };
-function passResult(path) {
-  return JSON.stringify({
-    schema_version: 2,
-    path,
-    overall: "No issue found",
-    summary: "No visible risk found.",
-    bug_risks: [],
-    complexity: { time: "O(n)", space: "O(n)" },
-    readability: [],
-  });
+function passResult() {
+  return `#### Summary
+No visible risk found.
+
+#### Possible risks
+- None observed from the submitted code alone.
+
+#### Complexity
+- Time: O(n)
+- Space: O(n)
+
+#### Readability
+- No specific improvement suggested.`;
 }
 
-function failResult(path) {
-  return JSON.stringify({
-    schema_version: 2,
-    path,
-    overall: "Possible issue",
-    summary: "A visible boundary may need attention.",
-    bug_risks: [{
-      category: "index-range",
-      location: "line 4",
-      reason: "The code reads the next element without a local bounds check.",
-      trigger: "The loop reaches the final element.",
-    }],
-    complexity: { time: "O(n)", space: "O(n)" },
-    readability: [],
-  });
+function failResult() {
+  return `#### Summary
+A visible boundary may need attention.
+
+#### Possible risks
+- At line 4, the code reads the next element without a local bounds check when the loop reaches the final element.
+
+#### Complexity
+- Time: O(n)
+- Space: O(n)
+
+#### Readability
+- No specific improvement suggested.`;
 }
 
 function reviewOptions(overrides = {}) {
@@ -63,7 +64,7 @@ function reviewOptions(overrides = {}) {
         completeCheck: async (value) => { completed.push(value); },
         upsertReviewComment: async (value) => { comments.push(value); },
       },
-      openCodeClient: { review: async () => passResult(firstPath) },
+      openCodeClient: { review: async () => passResult() },
       readFile: async () => "class Solution {}",
       catalog,
       changedFiles: [{ status: "A", path: firstPath }],
@@ -92,7 +93,7 @@ describe("reviewPullRequest", () => {
         completeCheck: async (value) => { completed.push(value); },
         upsertReviewComment: async (value) => { comments.push(value); },
       },
-      openCodeClient: { review: async (value) => { reviews.push(value); return passResult(value.prompt.includes(firstPath) ? firstPath : secondPath); } },
+      openCodeClient: { review: async (value) => { reviews.push(value); return passResult(); } },
       readFile: async (filePath) => sources.get(filePath),
       catalog,
       changedFiles: [{ status: "A", path: firstPath }, { status: "M", path: secondPath }],
@@ -115,20 +116,21 @@ describe("reviewPullRequest", () => {
     expect(completed).toHaveLength(1);
     expect(completed[0].conclusion).toBe("success");
     expect(result.results).toHaveLength(2);
-    expect(result.results.map(({ overall }) => overall)).toEqual(["No issue found", "No issue found"]);
+    expect(result.results.map(({ path }) => path)).toEqual([firstPath, secondPath]);
+    expect(result.results.every(({ markdown }) => markdown.includes("#### Summary"))).toBe(true);
   });
 
   it("keeps a possible code risk informational", async () => {
     const { options, completed, comments } = reviewOptions({
-      openCodeClient: { review: async () => failResult(firstPath) },
+      openCodeClient: { review: async () => failResult() },
     });
 
     const result = await reviewPullRequest(options);
 
     expect(result.conclusion).toBe("success");
     expect(completed[0].conclusion).toBe("success");
-    expect(comments[0].body).toContain("Possible bug risks:");
-    expect(comments[0].body).toContain("The loop reaches the final element.");
+    expect(comments[0].body).toContain("#### Possible risks");
+    expect(comments[0].body).toContain("the loop reaches the final element.");
   });
 
   it("renders a sanitized warning for a model failure and completes the check successfully", async () => {
@@ -146,24 +148,17 @@ describe("reviewPullRequest", () => {
     expect(comments[0].body).not.toContain(rawSecret);
   });
 
-  it("turns invalid model JSON into a sanitized model-response failure", async () => {
-    const rawModelOutput = "model secret output";
-    const { options, completed, comments } = reviewOptions({
-      openCodeClient: { review: async () => rawModelOutput },
-    });
-
-    const result = await reviewPullRequest(options);
-
-    expect(result.failure).toMatchObject({ stage: "model-response", reason: "MODEL_RESPONSE_INVALID" });
-    expect(completed[0].summary).not.toContain(rawModelOutput);
-    expect(comments[0].body).not.toContain(rawModelOutput);
-  });
-
-  it("redacts multiline Markdown-significant submitted source before rendering model fields", async () => {
-    const source = "class Solution {\n  // submitted-source-sentinel | <script>\n}";
+  it("redacts multiline Markdown-significant submitted source before rendering model Markdown", async () => {
+    const source = "class Solution {\r\n  // submitted-source-sentinel | <script>\r\n}\r\n";
+    const quotedEcho = source
+      .trim()
+      .replace(/\r\n/g, "\n")
+      .split("\n")
+      .map((line, index) => `    - ${index + 1}: ${line}`)
+      .join("\n\n");
     const { options, comments, completed } = reviewOptions({
       readFile: async () => source,
-      openCodeClient: { review: async () => JSON.stringify({ ...JSON.parse(passResult(firstPath)), summary: source }) },
+      openCodeClient: { review: async () => `#### Summary\n\`\`\`java\n${quotedEcho}\n\`\`\`` },
     });
 
     const result = await reviewPullRequest(options);
@@ -174,12 +169,12 @@ describe("reviewPullRequest", () => {
   });
 
   it.each([
-    ["No issue found", "Overall: No issue found"],
+    ["No issue found", "[submitted source redacted]"],
     ["<!-- leetdash-opencode-review -->", "<!-- leetdash-opencode-review -->"],
   ])("preserves trusted review framing when submitted source equals %s", async (source, requiredValue) => {
     const { options, comments, completed } = reviewOptions({
       readFile: async () => source,
-      openCodeClient: { review: async () => JSON.stringify({ ...JSON.parse(passResult(firstPath)), summary: source }) },
+      openCodeClient: { review: async () => source },
     });
 
     await reviewPullRequest(options);
@@ -191,22 +186,22 @@ describe("reviewPullRequest", () => {
     expect(output).toContain("https://github.example/actions/runs/9");
   });
 
-  it("pairs each parsed review with only its own submitted source", async () => {
+  it("pairs each Markdown review with only its own submitted source", async () => {
     const sources = new Map([[firstPath, "e"], [secondPath, "class Solution {}"]]);
-    const firstResult = { ...JSON.parse(passResult(firstPath)), summary: "e" };
-    const secondResult = { ...JSON.parse(passResult(secondPath)), summary: "Every edge case is handled." };
+    const firstResult = "e";
+    const secondResult = "#### Summary\nEvery edge case is handled.";
     const responses = [firstResult, secondResult];
     const { options, comments, completed } = reviewOptions({
       changedFiles: [{ status: "A", path: firstPath }, { status: "M", path: secondPath }],
       readFile: async (filePath) => sources.get(filePath),
-      openCodeClient: { review: async () => JSON.stringify(responses.shift()) },
+      openCodeClient: { review: async () => responses.shift() },
     });
 
     const result = await reviewPullRequest(options);
     const output = [comments[0].body, completed[0].summary].join("\n");
 
-    expect(result.results.map(({ summary }) => summary)).toEqual(["[submitted source redacted]", secondResult.summary]);
-    expect(output).toContain(`Summary: ${secondResult.summary}`);
+    expect(result.results.map(({ markdown }) => markdown)).toEqual(["[submitted source redacted]", secondResult]);
+    expect(output).toContain("> #### Summary\n> Every edge case is handled.");
   });
 
   it.each([
@@ -215,13 +210,13 @@ describe("reviewPullRequest", () => {
   ])("does not redact embedded text for a trivial or whitespace-only source %j", async (source, summary) => {
     const { options, comments, completed } = reviewOptions({
       readFile: async () => source,
-      openCodeClient: { review: async () => JSON.stringify({ ...JSON.parse(passResult(firstPath)), summary }) },
+      openCodeClient: { review: async () => `#### Summary\n${summary}` },
     });
 
     const result = await reviewPullRequest(options);
     const output = [result.markdown, comments[0].body, completed[0].summary].join("\n");
 
-    expect(output).toContain(`Summary: ${summary}`);
+    expect(output).toContain(`> #### Summary\n> ${summary}`);
   });
 
   it("keeps every redaction sentinel out of managed outputs on real client-to-orchestrator paths", async () => {
@@ -255,7 +250,7 @@ describe("reviewPullRequest", () => {
         openCodeClient: new OpenCodeClient({
           fetchImpl: async (_url, request) => {
             headers.push(request.headers.Authorization);
-            return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ choices: [{ message: { role: "assistant", content: JSON.stringify({ ...JSON.parse(passResult(firstPath)), summary: sentinels.source }) } }] }) };
+            return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ choices: [{ message: { role: "assistant", content: sentinels.source } }] }) };
           },
         }),
       });
@@ -270,21 +265,13 @@ describe("reviewPullRequest", () => {
       });
       const output = [...logSpy.mock.calls.flat(), ...captured].join("\n");
       expect(headers).toEqual([`Bearer ${sentinels.apiKey}`, sentinels.authorization]);
-      Object.values(sentinels).forEach((sentinel) => expect(output).not.toContain(sentinel));
+      expect(output).toContain(sentinels.modelBody);
+      for (const sentinel of [sentinels.apiKey, sentinels.authorization, sentinels.source]) {
+        expect(output).not.toContain(sentinel);
+      }
     } finally {
       logSpy.mockRestore();
     }
-  });
-
-  it("turns invalid review invariants into a result-validation failure", async () => {
-    const { options, completed } = reviewOptions({
-      openCodeClient: { review: async () => passResult(secondPath) },
-    });
-
-    const result = await reviewPullRequest(options);
-
-    expect(result.failure).toMatchObject({ stage: "result-validation", reason: "REVIEW_RESULT_INVALID" });
-    expect(completed[0].conclusion).toBe("success");
   });
 
   it("updates a prior managed failure body with a later passing review", async () => {
@@ -294,7 +281,7 @@ describe("reviewPullRequest", () => {
 
     await reviewPullRequest(options);
 
-    expect(storedBody).toContain("Overall: No issue found");
+    expect(storedBody).toContain("> #### Summary\n> No visible risk found.");
     expect(storedBody).not.toContain("review warning");
   });
 
