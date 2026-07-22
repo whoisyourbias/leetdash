@@ -72,11 +72,11 @@ describe("submission PR sweeper eligibility", () => {
 
     expect(decision).toEqual({
       eligible: false,
-      reason: "submissions/ada/top-interview-easy/1/Solution.java: submission-only PRs may add or update files, not delete them or rename them.",
+      reason: "submissions/ada/top-interview-easy/1/Solution.java: submission-only PRs may add, update, or rename files, not delete them.",
     });
   });
 
-  it("rejects renamed files even under the author path", () => {
+  it("accepts renamed files with a valid destination under the author path", () => {
     const decision = evaluatePullRequest({
       pullRequest: makePullRequest(),
       files: [{ ...validFile, status: "renamed", previous_filename: "submissions/ada/top-interview-easy/1/solution.jvaa" }],
@@ -85,9 +85,30 @@ describe("submission PR sweeper eligibility", () => {
       catalog,
     });
 
+    expect(decision).toEqual({ eligible: true });
+  });
+
+  it("rejects a renamed file whose destination belongs to another user", () => {
+    const decision = evaluatePullRequest({
+      pullRequest: makePullRequest(),
+      files: [{
+        filename: "submissions/grace/top-interview-easy/1/Solution.java",
+        status: "renamed",
+        previous_filename: "submissions/ada/top-interview-easy/1/Solution.java",
+      }],
+      checkRuns: successfulChecks,
+      users: {
+        users: [
+          ...users.users,
+          { id: "grace", displayName: "Grace Hopper", githubUsername: "grace" },
+        ],
+      },
+      catalog,
+    });
+
     expect(decision).toEqual({
       eligible: false,
-      reason: "submissions/ada/top-interview-easy/1/Solution.java: submission-only PRs may add or update files, not delete them or rename them.",
+      reason: "submissions/grace/top-interview-easy/1/Solution.java: belongs to grace, not pull request author ada.",
     });
   });
 
