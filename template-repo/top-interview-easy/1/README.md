@@ -2,7 +2,7 @@
 
 문제: https://leetcode.com/problems/two-sum/
 
-제출 경로: `top-interview-easy/546/`
+제출 경로: `top-interview-easy/1/`
 
 ## 메모
 
