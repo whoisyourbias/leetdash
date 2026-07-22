@@ -137,4 +137,3 @@ No problem content is copied into the catalog.
 ## Execution Order
 
 The reviewer contract and catalog migration may be implemented in parallel because they own mostly separate files. Integration happens after both are green: the reviewer stops resolving canonical problems, while trusted validation continues enforcing catalog membership. The #42 reviewer change is committed before the #35 catalog integration.
-

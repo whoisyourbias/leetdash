@@ -350,15 +350,20 @@ npm test
 npm run typecheck
 npm run catalog:build
 git diff --exit-code -- data/problem-catalog.json
+EXPECTED_GENERATED_AT=$(git show HEAD:data/progress.json | jq -r '.generatedAt')
 npm run progress:build
 jq 'walk(if type == "object" then del(.generatedAt) else . end)' data/progress.json > /tmp/progress-actual.json
 git show HEAD:data/progress.json | jq 'walk(if type == "object" then del(.generatedAt) else . end)' > /tmp/progress-expected.json
 diff -u /tmp/progress-expected.json /tmp/progress-actual.json
 npm run build
+ACTUAL_GENERATED_AT=$(jq -r '.generatedAt' data/progress.json)
+ACTUAL_GENERATED_AT="$ACTUAL_GENERATED_AT" EXPECTED_GENERATED_AT="$EXPECTED_GENERATED_AT" \
+  perl -pi -e 's/\Q$ENV{ACTUAL_GENERATED_AT}\E/$ENV{EXPECTED_GENERATED_AT}/g' data/progress.json
+git diff --exit-code -- data/progress.json
 git diff --check
 ```
 
-Expected: all commands exit 0. `data/progress.json` timestamps may change during generation; restore the committed generated file after the normalized comparison so verification leaves a clean worktree.
+Expected: all commands exit 0. `data/progress.json` timestamps may change during generation; the commands restore only those generated timestamps after the build and verify that all other content matches the committed file.
 
 - [ ] **Step 3: Configure branch protection**
 
