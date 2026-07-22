@@ -199,7 +199,7 @@ npm run build
 
 현재 테스트 범위:
 
-- 카탈로그 목록 개수, slug 매핑, 제출 키 형식과 중복 검증
+- 카탈로그 목록 개수, provider-scoped `problemKey` 매핑, 제출 키 형식과 중복 검증
 - 소스별 제출 폴더 기반 정적 진행 데이터 생성
 - 풀이 파일 기본 판정과 `meta.json` 상태 재정의
 - 예전 `solutions/<id>/` 및 slug 제출 폴더 무시
