@@ -1,27 +1,9 @@
 const solutionPathPattern = /^submissions\/([^/]+)\/([^/]+)\/([^/]+)\/solution\.([^.\/]+)$/i;
-const leetCodeLangSlugs = Object.freeze({
-  c: "c",
-  cc: "cpp",
-  cpp: "cpp",
-  cs: "csharp",
-  dart: "dart",
-  go: "golang",
-  java: "java",
-  js: "javascript",
-  kt: "kotlin",
-  php: "php",
-  py: "python3",
-  rb: "ruby",
-  rs: "rust",
-  scala: "scala",
-  sql: "mysql",
-  swift: "swift",
-  ts: "typescript",
-});
-const blockingCategories = new Set(["correctness", "compile", "runtime", "termination", "platform-contract", "complexity"]);
-const suggestionCategories = new Set(["style", "readability", "optimization", "alternative"]);
-const modelResponseDetail = "모델 응답은 schema version 1 JSON 계약을 충족하지 못했습니다.";
-const resultValidationDetail = "모델 판정 결과의 필드가 서로 일치하지 않습니다.";
+const overallValues = new Set(["No issue found", "Possible issue", "Improvement"]);
+const bugRiskCategories = new Set(["index-range", "overflow", "nullability", "edge-case", "condition"]);
+const readabilityCategories = new Set(["naming", "function-split", "duplication", "magic-number"]);
+const modelResponseDetail = "The model response does not satisfy the schema version 2 JSON contract.";
+const resultValidationDetail = "The model review result fields are inconsistent.";
 
 class ReviewFailure extends Error {
   constructor({ stage, reason, detail, retryable = false, httpStatus, requestId }) {
@@ -36,18 +18,10 @@ class ReviewFailure extends Error {
   }
 }
 
-function catalogFailure(detail) {
+function pathFailure(detail) {
   return new ReviewFailure({
-    stage: "catalog-resolve",
-    reason: "CATALOG_MAPPING_FAILED",
-    detail,
-  });
-}
-
-function problemFailure(detail) {
-  return new ReviewFailure({
-    stage: "problem-parse",
-    reason: "PROBLEM_DATA_INVALID",
+    stage: "path-parse",
+    reason: "SUBMISSION_PATH_INVALID",
     detail,
   });
 }
@@ -71,7 +45,7 @@ function resultValidationFailure() {
 function parseSubmissionSolutionPath(path) {
   const match = solutionPathPattern.exec(path);
   if (!match) {
-    throw catalogFailure("제출 solution 경로를 해석하지 못했습니다.");
+    throw pathFailure("The submission solution path could not be parsed.");
   }
 
   const [, user, sourceKey, submissionKey, extension] = match;
@@ -79,155 +53,55 @@ function parseSubmissionSolutionPath(path) {
   return { path, user, sourceKey, submissionKey, filename, extension: extension.toLowerCase() };
 }
 
-function resolveCatalogProblem(path, catalog) {
-  const parsedPath = parseSubmissionSolutionPath(path);
-  const list = catalog?.lists?.find((entry) => entry.key === parsedPath.sourceKey);
-  if (!list) {
-    throw catalogFailure("제출 목록을 찾지 못했습니다.");
-  }
+function buildReviewPrompt({ path, language, source }) {
+  return `You are performing an informational static review of one submitted source file.
 
-  const item = list.items?.find((entry) => String(entry.submissionKey) === parsedPath.submissionKey);
-  if (!item) {
-    throw catalogFailure("제출 문제를 찾지 못했습니다.");
-  }
+Use only the submission path, language, and code below. Correctness, expected behavior, platform contracts, input limits, and acceptable complexity cannot be inferred. Do not claim that the code is correct or incorrect, predict expected outputs, assume a required platform signature, or say whether the reported complexity fits unknown limits.
 
-  const problem = catalog?.problems?.find((entry) => entry.slug === item.slug);
-  if (!problem) {
-    throw catalogFailure("정식 문제 정보를 찾지 못했습니다.");
-  }
+Report only risks supported by evidence visible in the submitted code. An edge-case risk must name a boundary condition visible from the code and remain a possible risk, not a correctness verdict. Complexity must describe the code as written and does not by itself select Improvement.
 
-  return { ...parsedPath, slug: item.slug, problem };
-}
-
-function getLeetCodeLangSlug(extension) {
-  const langSlug = typeof extension === "string" ? leetCodeLangSlugs[extension.toLowerCase()] : undefined;
-  if (!langSlug) {
-    throw problemFailure("제출 언어를 LeetCode 공식 template에 매핑하지 못했습니다.");
-  }
-  return langSlug;
-}
-
-function hasText(value) {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-function normalizeQuestionData(rawQuestion, extension) {
-  const langSlug = getLeetCodeLangSlug(extension);
-  const content = rawQuestion?.content;
-  if (!hasText(content)) {
-    throw problemFailure("LeetCode 문제 본문이 비어 있습니다.");
-  }
-
-  const exampleTestcases = rawQuestion?.exampleTestcases;
-  if (!hasText(exampleTestcases)) {
-    throw problemFailure("LeetCode 예제 테스트 케이스가 비어 있습니다.");
-  }
-
-  let metadata;
-  try {
-    metadata = JSON.parse(rawQuestion?.metaData);
-  } catch {
-    throw problemFailure("LeetCode judge metadata가 유효하지 않습니다.");
-  }
-  if (!metadata || Array.isArray(metadata) || typeof metadata !== "object") {
-    throw problemFailure("LeetCode judge metadata가 유효하지 않습니다.");
-  }
-
-  const snippet = Array.isArray(rawQuestion?.codeSnippets)
-    ? rawQuestion.codeSnippets.find((entry) => entry?.langSlug === langSlug)
-    : undefined;
-  if (!hasText(snippet?.code)) {
-    throw problemFailure("제출 언어의 LeetCode 공식 코드 template을 찾지 못했습니다.");
-  }
-
-  const topicTags = Array.isArray(rawQuestion?.topicTags)
-    ? rawQuestion.topicTags
-      .filter((tag) => typeof tag?.name === "string" && typeof tag?.slug === "string")
-      .map(({ name, slug }) => ({ name, slug }))
-    : [];
-
-  return { content, exampleTestcases, metadata, codeTemplate: snippet.code, topicTags };
-}
-
-function buildReviewPrompt({ resolved, question, source }) {
-  return `You are a strict but narrowly scoped LeetCode submission judge.
-
-Review exactly one submitted solution against the supplied problem statement, constraints, judge metadata, official language template, and examples. Determine whether the code is correct for every valid input and whether its worst-case time and space complexity fit the stated constraints.
-
-Return exactly one JSON object matching schema_version 1 below. Do not return Markdown, code fences, prose before or after the JSON, or additional keys.
-
-Blocking policy:
-- FAIL only for an incorrect answer or missing edge case; a compile error or inevitable runtime error; non-termination; a violation of the platform/judge contract; or time/space complexity that exceeds the problem constraints.
-- Style, naming, readability, optional optimizations, and alternative algorithms are never blocking by themselves. Put them only in non_blocking_suggestions.
-- Do not assume unstated requirements. Judge using the supplied problem and metadata.
-- If verdict is FAIL, include at least one blocking finding. Give concrete evidence and, whenever applicable, a minimal counterexample with expected and actual behavior.
-- If verdict is PASS, correctness.status must be PASS, complexity.acceptable must be true, and blocking_findings must be empty.
-- correctness.status means end-to-end submission correctness, including compilation, runtime safety, termination, and platform/judge contract compliance. Every non-complexity blocking defect must set correctness.status to FAIL; complexity is the only independent blocking axis.
-- Echo submission_path exactly in path.
+Return exactly one JSON object matching the shape below, without Markdown or extra keys. Echo submission_path exactly in path. Select overall by priority:
+1. Possible issue when bug_risks is non-empty.
+2. Improvement when bug_risks is empty and readability is non-empty.
+3. No issue found otherwise.
 
 SUBMISSION
-- path: ${resolved.path}
-- language: ${resolved.extension}
-
-PROBLEM IDENTITY
-- leetcode_id: ${resolved.problem.leetcodeId}
-- title_slug: ${resolved.slug}
-- title: ${resolved.problem.title}
-- difficulty: ${resolved.problem.difficulty}
-
-PROBLEM CONTENT, EXAMPLES, AND CONSTRAINTS
-${question.content}
-
-EXAMPLE TEST CASES
-${question.exampleTestcases}
-
-JUDGE METADATA
-${JSON.stringify(question.metadata, null, 2)}
-
-OFFICIAL ${resolved.extension.toUpperCase()} CODE TEMPLATE
-${question.codeTemplate}
-
-TOPIC TAGS
-${JSON.stringify(question.topicTags, null, 2)}
+- path: ${path}
+- language: ${language}
 
 SUBMITTED CODE
 ${source}
 
 REQUIRED JSON SHAPE
 {
-  "schema_version": 1,
-  "verdict": "PASS | FAIL",
-  "path": "${resolved.path}",
-  "summary": "short verdict summary",
-  "correctness": {
-    "status": "PASS | FAIL",
-    "reason": "correctness reasoning tied to the problem contract"
-  },
-  "complexity": {
-    "time": "worst-case Big-O",
-    "space": "worst-case auxiliary-space Big-O",
-    "acceptable": true,
-    "reason": "comparison with the supplied constraints"
-  },
-  "blocking_findings": [
+  "schema_version": 2,
+  "path": "${path}",
+  "overall": "No issue found | Possible issue | Improvement",
+  "summary": "one-line review summary",
+  "bug_risks": [
     {
-      "category": "correctness | compile | runtime | termination | platform-contract | complexity",
-      "reason": "specific merge-blocking defect",
-      "evidence": "why the defect follows from the code and problem",
-      "counterexample": {
-        "input": "minimal failing input, or null when not applicable",
-        "expected": "expected behavior, or null when not applicable",
-        "actual": "actual behavior, or null when not applicable"
-      }
+      "category": "index-range | overflow | nullability | edge-case | condition",
+      "location": "source location",
+      "reason": "evidence visible in the submitted code",
+      "trigger": "condition under which the risk can occur"
     }
   ],
-  "non_blocking_suggestions": [
+  "complexity": {
+    "time": "complexity of the submitted code",
+    "space": "auxiliary-space complexity of the submitted code"
+  },
+  "readability": [
     {
-      "category": "style | readability | optimization | alternative",
-      "suggestion": "optional, non-blocking improvement"
+      "category": "naming | function-split | duplication | magic-number",
+      "location": "source location",
+      "suggestion": "short improvement"
     }
   ]
 }`;
+}
+
+function hasText(value) {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 function isObject(value) {
@@ -250,38 +124,24 @@ function assertEnum(value, allowed, field) {
   if (!allowed.has(value)) throw modelResponseFailure(field, "enum");
 }
 
-function assertStringOrNull(value, field) {
-  if (value !== null && !hasText(value)) throw modelResponseFailure(field, "string-or-null");
-}
-
-function assertCounterexample(value) {
-  assertExactKeys(value, ["input", "expected", "actual"], "blocking_findings[].counterexample");
-  assertStringOrNull(value.input, "blocking_findings[].counterexample.input");
-  assertStringOrNull(value.expected, "blocking_findings[].counterexample.expected");
-  assertStringOrNull(value.actual, "blocking_findings[].counterexample.actual");
-  const values = [value.input, value.expected, value.actual];
-  if (values.some((item) => item === null) && values.some((item) => item !== null)) {
-    throw modelResponseFailure("blocking_findings[].counterexample", "all-null-or-all-text");
-  }
-}
-
-function assertBlockingFinding(value) {
-  assertExactKeys(value, ["category", "reason", "evidence", "counterexample"], "blocking_findings[]");
-  assertEnum(value.category, blockingCategories, "blocking_findings[].category");
-  assertString(value.reason, "blocking_findings[].reason");
-  assertString(value.evidence, "blocking_findings[].evidence");
-  assertCounterexample(value.counterexample);
-}
-
-function assertSuggestion(value) {
-  assertExactKeys(value, ["category", "suggestion"], "non_blocking_suggestions[]");
-  assertEnum(value.category, suggestionCategories, "non_blocking_suggestions[].category");
-  assertString(value.suggestion, "non_blocking_suggestions[].suggestion");
-}
-
 function assertArray(value, validator, field) {
   if (!Array.isArray(value)) throw modelResponseFailure(field, "array");
   value.forEach(validator);
+}
+
+function assertBugRisk(value) {
+  assertExactKeys(value, ["category", "location", "reason", "trigger"], "bug_risks[]");
+  assertEnum(value.category, bugRiskCategories, "bug_risks[].category");
+  assertString(value.location, "bug_risks[].location");
+  assertString(value.reason, "bug_risks[].reason");
+  assertString(value.trigger, "bug_risks[].trigger");
+}
+
+function assertReadability(value) {
+  assertExactKeys(value, ["category", "location", "suggestion"], "readability[]");
+  assertEnum(value.category, readabilityCategories, "readability[].category");
+  assertString(value.location, "readability[].location");
+  assertString(value.suggestion, "readability[].suggestion");
 }
 
 function deepFreeze(value) {
@@ -302,49 +162,30 @@ function parseReviewResult(raw, expectedPath) {
 
   assertExactKeys(result, [
     "schema_version",
-    "verdict",
     "path",
+    "overall",
     "summary",
-    "correctness",
+    "bug_risks",
     "complexity",
-    "blocking_findings",
-    "non_blocking_suggestions",
+    "readability",
   ], "response");
-  if (result.schema_version !== 1) throw modelResponseFailure("schema_version", "value");
-  assertEnum(result.verdict, new Set(["PASS", "FAIL"]), "verdict");
+  if (result.schema_version !== 2) throw modelResponseFailure("schema_version", "value");
   assertString(result.path, "path");
+  assertEnum(result.overall, overallValues, "overall");
   assertString(result.summary, "summary");
-
-  assertExactKeys(result.correctness, ["status", "reason"], "correctness");
-  assertEnum(result.correctness.status, new Set(["PASS", "FAIL"]), "correctness.status");
-  assertString(result.correctness.reason, "correctness.reason");
-
-  assertExactKeys(result.complexity, ["time", "space", "acceptable", "reason"], "complexity");
+  assertArray(result.bug_risks, assertBugRisk, "bug_risks");
+  assertExactKeys(result.complexity, ["time", "space"], "complexity");
   assertString(result.complexity.time, "complexity.time");
   assertString(result.complexity.space, "complexity.space");
-  if (typeof result.complexity.acceptable !== "boolean") {
-    throw modelResponseFailure("complexity.acceptable", "boolean");
-  }
-  assertString(result.complexity.reason, "complexity.reason");
+  assertArray(result.readability, assertReadability, "readability");
 
-  assertArray(result.blocking_findings, assertBlockingFinding, "blocking_findings");
-  assertArray(result.non_blocking_suggestions, assertSuggestion, "non_blocking_suggestions");
-  const hasNonComplexityFinding = result.blocking_findings.some((finding) => finding.category !== "complexity");
-  const hasComplexityFinding = result.blocking_findings.some((finding) => finding.category === "complexity");
+  const expectedOverall = result.bug_risks.length > 0
+    ? "Possible issue"
+    : result.readability.length > 0
+      ? "Improvement"
+      : "No issue found";
 
-  if (
-    result.path !== expectedPath
-    || (result.verdict === "PASS" && (
-      result.correctness.status !== "PASS"
-      || result.blocking_findings.length > 0
-      || !result.complexity.acceptable
-    ))
-    || (result.verdict === "FAIL" && (
-      result.blocking_findings.length === 0
-      || (hasNonComplexityFinding && result.correctness.status !== "FAIL")
-      || (hasComplexityFinding && result.complexity.acceptable)
-    ))
-  ) {
+  if (result.path !== expectedPath || result.overall !== expectedOverall) {
     throw resultValidationFailure();
   }
 
@@ -360,15 +201,6 @@ function markdownText(value) {
     .replace(/\|/g, "\\|");
 }
 
-function renderCounterexample(counterexample) {
-  if (counterexample.input === null) return [];
-  return [
-    `  - Input: ${markdownText(counterexample.input)}`,
-    `  - Expected: ${markdownText(counterexample.expected)}`,
-    `  - Actual: ${markdownText(counterexample.actual)}`,
-  ];
-}
-
 function renderReviewComment({ headSha, results, runUrl }) {
   const lines = [
     "<!-- leetdash-opencode-review -->",
@@ -381,29 +213,26 @@ function renderReviewComment({ headSha, results, runUrl }) {
     lines.push(
       "",
       `### ${markdownText(result.path)}`,
-      `Verdict: ${markdownText(result.verdict)}`,
+      `Overall: ${markdownText(result.overall)}`,
       `Summary: ${markdownText(result.summary)}`,
-      `Correctness: ${markdownText(result.correctness.status)} — ${markdownText(result.correctness.reason)}`,
       `Time: ${markdownText(result.complexity.time)}`,
       `Space: ${markdownText(result.complexity.space)}`,
-      `Complexity acceptable: ${result.complexity.acceptable ? "yes" : "no"} — ${markdownText(result.complexity.reason)}`,
     );
 
-    if (result.blocking_findings.length > 0) {
-      lines.push("Blocking findings:");
-      result.blocking_findings.forEach((finding) => {
+    if (result.bug_risks.length > 0) {
+      lines.push("Possible bug risks:");
+      result.bug_risks.forEach((risk) => {
         lines.push(
-          `- ${markdownText(finding.category)}: ${markdownText(finding.reason)}`,
-          `  - Evidence: ${markdownText(finding.evidence)}`,
-          ...renderCounterexample(finding.counterexample),
+          `- ${markdownText(risk.category)} at ${markdownText(risk.location)}: ${markdownText(risk.reason)}`,
+          `  - Trigger: ${markdownText(risk.trigger)}`,
         );
       });
     }
 
-    if (result.non_blocking_suggestions.length > 0) {
-      lines.push("Non-blocking suggestions:");
-      result.non_blocking_suggestions.forEach((suggestion) => {
-        lines.push(`- ${markdownText(suggestion.category)}: ${markdownText(suggestion.suggestion)}`);
+    if (result.readability.length > 0) {
+      lines.push("Readability improvements:");
+      result.readability.forEach((item) => {
+        lines.push(`- ${markdownText(item.category)} at ${markdownText(item.location)}: ${markdownText(item.suggestion)}`);
       });
     }
   });
@@ -411,10 +240,10 @@ function renderReviewComment({ headSha, results, runUrl }) {
   return lines.join("\n");
 }
 
-function renderInfrastructureFailure({ headSha, failure, runUrl }) {
+function renderReviewWarning({ headSha, failure, runUrl }) {
   const lines = [
     "<!-- leetdash-opencode-review -->",
-    "## OpenCode review infrastructure failure (issue #33)",
+    "## OpenCode review warning",
     `Commit: ${markdownText(headSha)}`,
     `Stage: ${markdownText(failure.stage)}`,
     `Reason: ${markdownText(failure.reason)}`,
@@ -430,11 +259,8 @@ function renderInfrastructureFailure({ headSha, failure, runUrl }) {
 export {
   ReviewFailure,
   buildReviewPrompt,
-  getLeetCodeLangSlug,
-  normalizeQuestionData,
   parseReviewResult,
   parseSubmissionSolutionPath,
-  renderInfrastructureFailure,
   renderReviewComment,
-  resolveCatalogProblem,
+  renderReviewWarning,
 };

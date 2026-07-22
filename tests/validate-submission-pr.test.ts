@@ -16,18 +16,24 @@ async function createRepoFixture() {
   const repo = await mkdtemp(path.join(tmpdir(), "submission-pr-"));
   await mkdir(path.join(repo, "data"), { recursive: true });
   await mkdir(path.join(repo, "submissions", "ada", "top-interview-easy", "1"), { recursive: true });
+  await mkdir(path.join(repo, "submissions", "ada", "programmers", "12906"), { recursive: true });
+  await mkdir(path.join(repo, "submissions", "ada", "swea", "1206"), { recursive: true });
   await writeJson(path.join(repo, "data", "problem-catalog.json"), {
     lists: [
       {
         key: "top-interview-easy",
-        items: [{ slug: "two-sum", submissionKey: "1" }],
+        items: [{ problemKey: "leetcode:1", submissionKey: "1" }],
       },
+      { key: "programmers", items: [{ problemKey: "programmers:12906", submissionKey: "12906" }] },
+      { key: "swea", items: [{ problemKey: "swea:1206", submissionKey: "1206" }] },
     ],
   });
   await writeJson(path.join(repo, "data", "users.json"), {
     users: [{ id: "ada", displayName: "Ada Lovelace", githubUsername: "ada" }],
   });
   await writeFile(path.join(repo, "submissions", "ada", "top-interview-easy", "1", "Solution.java"), "class Solution {}\n");
+  await writeFile(path.join(repo, "submissions", "ada", "programmers", "12906", "solution.java"), "class Solution {}\n");
+  await writeFile(path.join(repo, "submissions", "ada", "swea", "1206", "solution.py"), "# solved\n");
   return repo;
 }
 
@@ -96,6 +102,18 @@ describe("validate-submission-pr", () => {
     expect(result.githubOutput).toBe("submission_only=true\n");
   });
 
+  it("accepts Programmers and SWEA catalog submission paths", async () => {
+    const repo = await createRepoFixture();
+
+    const result = await runValidator(
+      repo,
+      "A\tsubmissions/ada/programmers/12906/solution.java\nA\tsubmissions/ada/swea/1206/solution.py\n",
+    );
+
+    expect(result.stdout).toContain("validated 2 changed submission file(s)");
+    expect(result.githubOutput).toBe("submission_only=true\n");
+  });
+
   it("keeps application changes on the full CI path", async () => {
     const repo = await createRepoFixture();
 
@@ -105,13 +123,13 @@ describe("validate-submission-pr", () => {
     expect(result.githubOutput).toBe("submission_only=false\n");
   });
 
-  it("rejects submission-only changes for unknown catalog targets", async () => {
+  it("rejects submission-only changes for an unknown provider list", async () => {
     const repo = await createRepoFixture();
-    await mkdir(path.join(repo, "submissions", "ada", "top-interview-easy", "999"), { recursive: true });
-    await writeFile(path.join(repo, "submissions", "ada", "top-interview-easy", "999", "Solution.java"), "class Solution {}\n");
+    await mkdir(path.join(repo, "submissions", "ada", "unknown", "1"), { recursive: true });
+    await writeFile(path.join(repo, "submissions", "ada", "unknown", "1", "Solution.java"), "class Solution {}\n");
 
-    await expect(runValidator(repo, "A\tsubmissions/ada/top-interview-easy/999/Solution.java\n")).rejects.toMatchObject({
-      stderr: expect.stringContaining("top-interview-easy/999 is not in data/problem-catalog.json"),
+    await expect(runValidator(repo, "A\tsubmissions/ada/unknown/1/Solution.java\n")).rejects.toMatchObject({
+      stderr: expect.stringContaining("unknown/1 is not in data/problem-catalog.json"),
       githubOutput: "submission_only=true\n",
     });
   });

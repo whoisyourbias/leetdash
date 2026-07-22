@@ -1,11 +1,9 @@
 import { ReviewFailure } from "./opencode-review-core.mjs";
 
-const leetCodeGraphqlUrl = "https://leetcode.com/graphql";
 const openCodeChatCompletionsUrl = "https://opencode.ai/zen/go/v1/chat/completions";
 const openCodeConfiguredModel = "opencode-go/kimi-k2.7-code";
 const openCodeApiModel = "kimi-k2.7-code";
 const reviewCommentMarker = "<!-- leetdash-opencode-review -->";
-const leetCodeRequestTimeoutMs = 60_000;
 const openCodeRequestTimeoutMs = 180_000;
 
 function extractRequestId(response) {
@@ -66,73 +64,6 @@ function toSafeGitHubFailure(FailureType, response) {
     ...(httpStatus === undefined ? {} : { httpStatus }),
     ...(requestId === undefined ? {} : { requestId }),
   });
-}
-
-class LeetCodeClient {
-  constructor({ fetchImpl = fetch } = {}) {
-    this.fetchImpl = fetchImpl;
-    this.questions = new Map();
-  }
-
-  getQuestion(titleSlug) {
-    if (!this.questions.has(titleSlug)) {
-      this.questions.set(titleSlug, this.fetchQuestion(titleSlug));
-    }
-    return this.questions.get(titleSlug);
-  }
-
-  async fetchQuestion(titleSlug) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), leetCodeRequestTimeoutMs);
-    let response;
-    try {
-      response = await this.fetchImpl(leetCodeGraphqlUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: "query questionData($titleSlug: String!) { question(titleSlug: $titleSlug) { questionFrontendId title titleSlug difficulty content exampleTestcases metaData codeSnippets { lang langSlug code } topicTags { name slug } } }",
-          variables: { titleSlug },
-        }),
-        signal: controller.signal,
-      });
-      if (!response?.ok) {
-        throw toSafeHttpFailure({
-          stage: "problem-fetch",
-          reason: "PROBLEM_FETCH_FAILED",
-          response,
-          detail: "LeetCode request failed.",
-        });
-      }
-
-      let body;
-      try {
-        body = await response.json();
-      } catch {
-        throw new ReviewFailure({
-          stage: "problem-fetch",
-          reason: "PROBLEM_FETCH_FAILED",
-          detail: "LeetCode returned an invalid response.",
-        });
-      }
-      if (Array.isArray(body?.errors) || !body?.data?.question) {
-        throw new ReviewFailure({
-          stage: "problem-fetch",
-          reason: "PROBLEM_FETCH_FAILED",
-          detail: "LeetCode question data is unavailable.",
-        });
-      }
-      return body.data.question;
-    } catch (error) {
-      if (error instanceof ReviewFailure) throw error;
-      throw new ReviewFailure({
-        stage: "problem-fetch",
-        reason: "PROBLEM_FETCH_FAILED",
-        detail: "LeetCode request failed.",
-      });
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
 }
 
 class OpenCodeClient {
@@ -351,7 +282,6 @@ class GitHubReviewClient {
 export {
   GitHubDeliveryFailure,
   GitHubReviewClient,
-  LeetCodeClient,
   OpenCodeClient,
   extractRequestId,
   isRetryableStatus,

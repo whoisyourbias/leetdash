@@ -98,7 +98,7 @@ export default async function DashboardPage() {
                 ) : (
                   <div className="recent-submission-list">
                     {data.recentSolvedSubmissions.map((submission) => (
-                      <div className="recent-submission-item" key={`${submission.userId}:${submission.problemSlug}`}>
+                      <div className="recent-submission-item" key={`${submission.userId}:${submission.problemKey}`}>
                         <div>
                           <Link className="user-name compact" href={`/users/${submission.userId}`}>
                             {submission.displayName}

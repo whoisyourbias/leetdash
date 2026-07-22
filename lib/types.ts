@@ -17,7 +17,7 @@ export type User = {
 export type Submission = {
   id: string;
   userId: string;
-  problemSlug: string;
+  problemKey: string;
   sourceKey: string;
   submissionKey: string;
   status: SubmissionStatus;
@@ -34,7 +34,7 @@ export type Submission = {
 };
 
 export type ActivitySubmission = {
-  problemSlug: string;
+  problemKey: string;
   sourceKey: string;
   submissionKey: string;
 };

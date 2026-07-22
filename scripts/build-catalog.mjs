@@ -6,6 +6,21 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const inputPath = process.argv[2] ?? "/private/tmp/honood-readme.md";
 const markdown = readFileSync(inputPath, "utf8");
 
+const toProblemKey = (provider, problemId) => `${provider}:${String(problemId)}`;
+
+function createLeetCodeProblem({ leetcodeId, slug, title, difficulty }) {
+  const problemId = String(leetcodeId);
+  return {
+    provider: "leetcode",
+    problemId,
+    problemKey: toProblemKey("leetcode", problemId),
+    slug,
+    title,
+    difficulty,
+    sourceUrl: `https://leetcode.com/problems/${slug}/`,
+  };
+}
+
 function sliceSection(startHeading, endHeading) {
   const start = markdown.indexOf(startHeading);
   if (start === -1) {
@@ -38,15 +53,15 @@ function parseStudyPlan({ key, title, url, summary, source }) {
     }
 
     order += 1;
-    const problem = {
+    const problem = createLeetCodeProblem({
       leetcodeId: Number(problemMatch[1]),
       slug: problemMatch[3],
       title: problemMatch[2].replace(/\\'/g, "'"),
       difficulty: problemMatch[4].toLowerCase(),
-    };
+    });
 
-    problems.set(problem.slug, problem);
-    items.push({ slug: problem.slug, order, section: currentSection, submissionKey: String(problem.leetcodeId) });
+    problems.set(problem.problemKey, problem);
+    items.push({ problemKey: problem.problemKey, order, section: currentSection, submissionKey: problem.problemId });
   }
 
   return {
@@ -122,14 +137,14 @@ const topInterviewEasy = {
   title: "Top Interview Questions Easy",
   url: "https://leetcode.com/explore/featured/card/top-interview-questions-easy/",
   summary: ["Explore card for common easy interview preparation topics"],
-  problems: topInterviewEasyRows.map(([, leetcodeId, slug, title, difficulty]) => ({
+  problems: topInterviewEasyRows.map(([, leetcodeId, slug, title, difficulty]) => createLeetCodeProblem({
     leetcodeId,
     slug,
     title,
     difficulty,
   })),
   items: topInterviewEasyRows.map(([section, leetcodeId, slug], index) => ({
-    slug,
+    problemKey: toProblemKey("leetcode", leetcodeId),
     order: index + 1,
     section,
     submissionKey: String(leetcodeId),
@@ -152,13 +167,46 @@ const topInterview150 = parseStudyPlan({
   source: sliceSection("## [Top Interview 150]", "## [Top 100 Liked]"),
 });
 
-const lists = [topInterviewEasy, leetcode75, topInterview150];
-const problemsBySlug = new Map();
+const programmersProblem = {
+  provider: "programmers",
+  problemId: "12906",
+  problemKey: toProblemKey("programmers", "12906"),
+  title: "같은 숫자는 싫어",
+  difficulty: "level-1",
+  sourceUrl: "https://school.programmers.co.kr/learn/courses/30/lessons/12906",
+};
+
+const sweaProblem = {
+  provider: "swea",
+  problemId: "1206",
+  problemKey: toProblemKey("swea", "1206"),
+  title: "[S/W 문제해결 기본] 1일차 - View",
+  difficulty: "D3",
+  sourceUrl: "https://swexpertacademy.com/main/code/problem/problemList.do?problemTitle=1206",
+};
+
+const providerList = (problem, title) => ({
+  key: problem.provider,
+  title,
+  url: problem.sourceUrl,
+  summary: [],
+  problems: [problem],
+  items: [{ problemKey: problem.problemKey, order: 1, section: "", submissionKey: problem.problemId }],
+});
+
+const lists = [
+  topInterviewEasy,
+  leetcode75,
+  topInterview150,
+  providerList(programmersProblem, "Programmers"),
+  providerList(sweaProblem, "SWEA"),
+];
+const problemsByKey = new Map();
 for (const list of lists) {
   for (const problem of list.problems) {
-    const existing = problemsBySlug.get(problem.slug);
+    const existing = problemsByKey.get(problem.problemKey);
     if (!existing || existing.title.length < problem.title.length) {
-      problemsBySlug.set(problem.slug, problem);
+      problemsByKey.set(problem.problemKey, problem);
     }
   }
 }
@@ -171,9 +219,14 @@ const catalog = {
     "https://leetcode.com/studyplan/top-interview-150/",
     "https://github.com/honood/leetcode/blob/main/README.md",
     "https://blog.nuomi1.com/archives/2018/12/leetcode-top-interview-questions-easy-swift-exercises.html",
+    programmersProblem.sourceUrl,
+    sweaProblem.sourceUrl,
   ],
   lists,
-  problems: [...problemsBySlug.values()].sort((a, b) => a.leetcodeId - b.leetcodeId),
+  problems: [...problemsByKey.values()].sort((a, b) => {
+    const providerOrder = ["leetcode", "programmers", "swea"];
+    return providerOrder.indexOf(a.provider) - providerOrder.indexOf(b.provider) || Number(a.problemId) - Number(b.problemId);
+  }),
 };
 
 writeFileSync(resolve(root, "data/problem-catalog.json"), `${JSON.stringify(catalog, null, 2)}\n`);

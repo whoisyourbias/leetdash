@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-19T16:06:16.596Z",
+  "generatedAt": "2026-07-22T11:49:36.905Z",
   "users": [
     {
       "id": "mygo",
@@ -9,113 +9,9 @@
       "submissionsPath": "submissions/whoisyourbias",
       "submissions": [
         {
-          "id": "mygo:best-time-to-buy-and-sell-stock-ii",
+          "id": "mygo:leetcode:1",
           "userId": "mygo",
-          "problemSlug": "best-time-to-buy-and-sell-stock-ii",
-          "sourceKey": "top-interview-easy",
-          "submissionKey": "122",
-          "status": "SOLVED",
-          "language": "JAVA",
-          "solutionPath": "submissions/whoisyourbias/top-interview-easy/122/Solution.java",
-          "source": "solution-file",
-          "submittedAt": "2026-07-19T13:11:38.000Z",
-          "generatedAt": "2026-07-19T16:06:16.596Z"
-        },
-        {
-          "id": "mygo:contains-duplicate",
-          "userId": "mygo",
-          "problemSlug": "contains-duplicate",
-          "sourceKey": "top-interview-easy",
-          "submissionKey": "217",
-          "status": "SOLVED",
-          "language": "JAVA",
-          "solutionPath": "submissions/whoisyourbias/top-interview-easy/217/Solution.java",
-          "source": "solution-file",
-          "submittedAt": "2026-07-19T13:11:38.000Z",
-          "generatedAt": "2026-07-19T16:06:16.596Z"
-        },
-        {
-          "id": "mygo:intersection-of-two-arrays-ii",
-          "userId": "mygo",
-          "problemSlug": "intersection-of-two-arrays-ii",
-          "sourceKey": "top-interview-easy",
-          "submissionKey": "350",
-          "status": "SOLVED",
-          "language": "JAVA",
-          "solutionPath": "submissions/whoisyourbias/top-interview-easy/350/Solution.java",
-          "source": "solution-file",
-          "submittedAt": "2026-07-19T13:15:09.000Z",
-          "generatedAt": "2026-07-19T16:06:16.596Z"
-        },
-        {
-          "id": "mygo:move-zeroes",
-          "userId": "mygo",
-          "problemSlug": "move-zeroes",
-          "sourceKey": "top-interview-easy",
-          "submissionKey": "283",
-          "status": "SOLVED",
-          "language": "JAVA",
-          "solutionPath": "submissions/whoisyourbias/top-interview-easy/283/Solution.java",
-          "source": "solution-file",
-          "submittedAt": "2026-07-19T15:13:07.000Z",
-          "generatedAt": "2026-07-19T16:06:16.596Z"
-        },
-        {
-          "id": "mygo:plus-one",
-          "userId": "mygo",
-          "problemSlug": "plus-one",
-          "sourceKey": "top-interview-easy",
-          "submissionKey": "66",
-          "status": "SOLVED",
-          "language": "JAVA",
-          "solutionPath": "submissions/whoisyourbias/top-interview-easy/66/Solution.java",
-          "source": "solution-file",
-          "submittedAt": "2026-07-19T13:38:45.000Z",
-          "generatedAt": "2026-07-19T16:06:16.596Z"
-        },
-        {
-          "id": "mygo:remove-duplicates-from-sorted-array",
-          "userId": "mygo",
-          "problemSlug": "remove-duplicates-from-sorted-array",
-          "sourceKey": "top-interview-easy",
-          "submissionKey": "26",
-          "status": "SOLVED",
-          "language": "JAVA",
-          "solutionPath": "submissions/whoisyourbias/top-interview-easy/26/Solution.java",
-          "source": "solution-file",
-          "submittedAt": "2026-07-19T13:11:38.000Z",
-          "generatedAt": "2026-07-19T16:06:16.596Z"
-        },
-        {
-          "id": "mygo:rotate-array",
-          "userId": "mygo",
-          "problemSlug": "rotate-array",
-          "sourceKey": "top-interview-easy",
-          "submissionKey": "189",
-          "status": "SOLVED",
-          "language": "JAVA",
-          "solutionPath": "submissions/whoisyourbias/top-interview-easy/189/Solution.java",
-          "source": "solution-file",
-          "submittedAt": "2026-07-19T13:11:38.000Z",
-          "generatedAt": "2026-07-19T16:06:16.596Z"
-        },
-        {
-          "id": "mygo:single-number",
-          "userId": "mygo",
-          "problemSlug": "single-number",
-          "sourceKey": "top-interview-easy",
-          "submissionKey": "136",
-          "status": "SOLVED",
-          "language": "JAVA",
-          "solutionPath": "submissions/whoisyourbias/top-interview-easy/136/Solution.java",
-          "source": "solution-file",
-          "submittedAt": "2026-07-19T13:15:09.000Z",
-          "generatedAt": "2026-07-19T16:06:16.596Z"
-        },
-        {
-          "id": "mygo:two-sum",
-          "userId": "mygo",
-          "problemSlug": "two-sum",
+          "problemKey": "leetcode:1",
           "sourceKey": "top-interview-easy",
           "submissionKey": "1",
           "status": "SOLVED",
@@ -123,12 +19,155 @@
           "solutionPath": "submissions/whoisyourbias/top-interview-easy/1/Solution.java",
           "source": "solution-file",
           "submittedAt": "2026-07-19T15:30:54.000Z",
-          "generatedAt": "2026-07-19T16:06:16.596Z"
+          "generatedAt": "2026-07-22T11:49:36.905Z"
         },
         {
-          "id": "mygo:valid-sudoku",
+          "id": "mygo:leetcode:122",
           "userId": "mygo",
-          "problemSlug": "valid-sudoku",
+          "problemKey": "leetcode:122",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "122",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/whoisyourbias/top-interview-easy/122/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-19T13:11:38.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "mygo:leetcode:125",
+          "userId": "mygo",
+          "problemKey": "leetcode:125",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "125",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/whoisyourbias/top-interview-easy/125/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-21T08:12:52.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "mygo:leetcode:136",
+          "userId": "mygo",
+          "problemKey": "leetcode:136",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "136",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/whoisyourbias/top-interview-easy/136/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-19T13:15:09.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "mygo:leetcode:189",
+          "userId": "mygo",
+          "problemKey": "leetcode:189",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "189",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/whoisyourbias/top-interview-easy/189/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-19T13:11:38.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "mygo:leetcode:217",
+          "userId": "mygo",
+          "problemKey": "leetcode:217",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "217",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/whoisyourbias/top-interview-easy/217/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-19T13:11:38.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "mygo:leetcode:242",
+          "userId": "mygo",
+          "problemKey": "leetcode:242",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "242",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/whoisyourbias/top-interview-easy/242/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-21T08:12:52.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "mygo:leetcode:26",
+          "userId": "mygo",
+          "problemKey": "leetcode:26",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "26",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/whoisyourbias/top-interview-easy/26/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-19T13:11:38.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "mygo:leetcode:28",
+          "userId": "mygo",
+          "problemKey": "leetcode:28",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "28",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/whoisyourbias/top-interview-easy/28/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-21T09:00:18.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "mygo:leetcode:283",
+          "userId": "mygo",
+          "problemKey": "leetcode:283",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "283",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/whoisyourbias/top-interview-easy/283/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-19T15:13:07.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "mygo:leetcode:344",
+          "userId": "mygo",
+          "problemKey": "leetcode:344",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "344",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/whoisyourbias/top-interview-easy/344/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-20T14:42:15.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "mygo:leetcode:350",
+          "userId": "mygo",
+          "problemKey": "leetcode:350",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "350",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/whoisyourbias/top-interview-easy/350/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-19T13:15:09.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "mygo:leetcode:36",
+          "userId": "mygo",
+          "problemKey": "leetcode:36",
           "sourceKey": "top-interview-easy",
           "submissionKey": "36",
           "status": "SOLVED",
@@ -136,7 +175,85 @@
           "solutionPath": "submissions/whoisyourbias/top-interview-easy/36/Solution.java",
           "source": "solution-file",
           "submittedAt": "2026-07-19T16:03:02.000Z",
-          "generatedAt": "2026-07-19T16:06:16.596Z"
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "mygo:leetcode:38",
+          "userId": "mygo",
+          "problemKey": "leetcode:38",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "38",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/whoisyourbias/top-interview-easy/38/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-21T15:19:10.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "mygo:leetcode:387",
+          "userId": "mygo",
+          "problemKey": "leetcode:387",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "387",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/whoisyourbias/top-interview-easy/387/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-21T08:12:52.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "mygo:leetcode:48",
+          "userId": "mygo",
+          "problemKey": "leetcode:48",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "48",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/whoisyourbias/top-interview-easy/48/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-20T13:33:10.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "mygo:leetcode:66",
+          "userId": "mygo",
+          "problemKey": "leetcode:66",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "66",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/whoisyourbias/top-interview-easy/66/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-19T13:38:45.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "mygo:leetcode:7",
+          "userId": "mygo",
+          "problemKey": "leetcode:7",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "7",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/whoisyourbias/top-interview-easy/7/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-20T15:31:47.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "mygo:leetcode:8",
+          "userId": "mygo",
+          "problemKey": "leetcode:8",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "8",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/whoisyourbias/top-interview-easy/8/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-21T08:12:52.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
         }
       ],
       "activity": [
@@ -145,60 +262,613 @@
           "solved": 7,
           "submissions": [
             {
-              "problemSlug": "best-time-to-buy-and-sell-stock-ii",
+              "problemKey": "leetcode:122",
               "sourceKey": "top-interview-easy",
               "submissionKey": "122"
             },
             {
-              "problemSlug": "contains-duplicate",
+              "problemKey": "leetcode:136",
               "sourceKey": "top-interview-easy",
-              "submissionKey": "217"
+              "submissionKey": "136"
             },
             {
-              "problemSlug": "intersection-of-two-arrays-ii",
-              "sourceKey": "top-interview-easy",
-              "submissionKey": "350"
-            },
-            {
-              "problemSlug": "plus-one",
-              "sourceKey": "top-interview-easy",
-              "submissionKey": "66"
-            },
-            {
-              "problemSlug": "remove-duplicates-from-sorted-array",
-              "sourceKey": "top-interview-easy",
-              "submissionKey": "26"
-            },
-            {
-              "problemSlug": "rotate-array",
+              "problemKey": "leetcode:189",
               "sourceKey": "top-interview-easy",
               "submissionKey": "189"
             },
             {
-              "problemSlug": "single-number",
+              "problemKey": "leetcode:217",
               "sourceKey": "top-interview-easy",
-              "submissionKey": "136"
+              "submissionKey": "217"
+            },
+            {
+              "problemKey": "leetcode:26",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "26"
+            },
+            {
+              "problemKey": "leetcode:350",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "350"
+            },
+            {
+              "problemKey": "leetcode:66",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "66"
             }
           ]
         },
         {
           "date": "2026-07-20",
-          "solved": 3,
+          "solved": 5,
           "submissions": [
             {
-              "problemSlug": "move-zeroes",
-              "sourceKey": "top-interview-easy",
-              "submissionKey": "283"
-            },
-            {
-              "problemSlug": "two-sum",
+              "problemKey": "leetcode:1",
               "sourceKey": "top-interview-easy",
               "submissionKey": "1"
             },
             {
-              "problemSlug": "valid-sudoku",
+              "problemKey": "leetcode:283",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "283"
+            },
+            {
+              "problemKey": "leetcode:344",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "344"
+            },
+            {
+              "problemKey": "leetcode:36",
               "sourceKey": "top-interview-easy",
               "submissionKey": "36"
+            },
+            {
+              "problemKey": "leetcode:48",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "48"
+            }
+          ]
+        },
+        {
+          "date": "2026-07-21",
+          "solved": 7,
+          "submissions": [
+            {
+              "problemKey": "leetcode:125",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "125"
+            },
+            {
+              "problemKey": "leetcode:242",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "242"
+            },
+            {
+              "problemKey": "leetcode:28",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "28"
+            },
+            {
+              "problemKey": "leetcode:38",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "38"
+            },
+            {
+              "problemKey": "leetcode:387",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "387"
+            },
+            {
+              "problemKey": "leetcode:7",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "7"
+            },
+            {
+              "problemKey": "leetcode:8",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "8"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "yeochang",
+      "displayName": "윤여창",
+      "githubUsername": "yeochang-yoon",
+      "active": true,
+      "submissionsPath": "submissions/yeochang-yoon",
+      "submissions": [
+        {
+          "id": "yeochang:leetcode:1",
+          "userId": "yeochang",
+          "problemKey": "leetcode:1",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "1",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/yeochang-yoon/top-interview-easy/1/solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-21T11:29:53.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "yeochang:leetcode:122",
+          "userId": "yeochang",
+          "problemKey": "leetcode:122",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "122",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/yeochang-yoon/top-interview-easy/122/solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-20T13:38:01.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "yeochang:leetcode:125",
+          "userId": "yeochang",
+          "problemKey": "leetcode:125",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "125",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/yeochang-yoon/top-interview-easy/125/solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-21T13:58:01.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "yeochang:leetcode:136",
+          "userId": "yeochang",
+          "problemKey": "leetcode:136",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "136",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/yeochang-yoon/top-interview-easy/136/solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-20T13:38:01.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "yeochang:leetcode:189",
+          "userId": "yeochang",
+          "problemKey": "leetcode:189",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "189",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/yeochang-yoon/top-interview-easy/189/solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-20T13:38:01.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "yeochang:leetcode:217",
+          "userId": "yeochang",
+          "problemKey": "leetcode:217",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "217",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/yeochang-yoon/top-interview-easy/217/solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-20T13:38:01.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "yeochang:leetcode:242",
+          "userId": "yeochang",
+          "problemKey": "leetcode:242",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "242",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/yeochang-yoon/top-interview-easy/242/solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-21T13:42:42.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "yeochang:leetcode:26",
+          "userId": "yeochang",
+          "problemKey": "leetcode:26",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "26",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/yeochang-yoon/top-interview-easy/26/solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-20T11:43:45.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "yeochang:leetcode:283",
+          "userId": "yeochang",
+          "problemKey": "leetcode:283",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "283",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/yeochang-yoon/top-interview-easy/283/solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-20T14:00:14.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "yeochang:leetcode:344",
+          "userId": "yeochang",
+          "problemKey": "leetcode:344",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "344",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/yeochang-yoon/top-interview-easy/344/solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-21T12:53:37.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "yeochang:leetcode:350",
+          "userId": "yeochang",
+          "problemKey": "leetcode:350",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "350",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/yeochang-yoon/top-interview-easy/350/solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-20T13:38:01.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "yeochang:leetcode:36",
+          "userId": "yeochang",
+          "problemKey": "leetcode:36",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "36",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/yeochang-yoon/top-interview-easy/36/solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-21T12:06:07.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "yeochang:leetcode:387",
+          "userId": "yeochang",
+          "problemKey": "leetcode:387",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "387",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/yeochang-yoon/top-interview-easy/387/solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-21T13:36:10.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "yeochang:leetcode:48",
+          "userId": "yeochang",
+          "problemKey": "leetcode:48",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "48",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/yeochang-yoon/top-interview-easy/48/solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-21T12:34:47.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "yeochang:leetcode:66",
+          "userId": "yeochang",
+          "problemKey": "leetcode:66",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "66",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/yeochang-yoon/top-interview-easy/66/solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-20T13:38:01.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "yeochang:leetcode:7",
+          "userId": "yeochang",
+          "problemKey": "leetcode:7",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "7",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/yeochang-yoon/top-interview-easy/7/solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-21T13:22:13.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        }
+      ],
+      "activity": [
+        {
+          "date": "2026-07-20",
+          "solved": 8,
+          "submissions": [
+            {
+              "problemKey": "leetcode:122",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "122"
+            },
+            {
+              "problemKey": "leetcode:136",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "136"
+            },
+            {
+              "problemKey": "leetcode:189",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "189"
+            },
+            {
+              "problemKey": "leetcode:217",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "217"
+            },
+            {
+              "problemKey": "leetcode:26",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "26"
+            },
+            {
+              "problemKey": "leetcode:283",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "283"
+            },
+            {
+              "problemKey": "leetcode:350",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "350"
+            },
+            {
+              "problemKey": "leetcode:66",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "66"
+            }
+          ]
+        },
+        {
+          "date": "2026-07-21",
+          "solved": 8,
+          "submissions": [
+            {
+              "problemKey": "leetcode:1",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "1"
+            },
+            {
+              "problemKey": "leetcode:125",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "125"
+            },
+            {
+              "problemKey": "leetcode:242",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "242"
+            },
+            {
+              "problemKey": "leetcode:344",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "344"
+            },
+            {
+              "problemKey": "leetcode:36",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "36"
+            },
+            {
+              "problemKey": "leetcode:387",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "387"
+            },
+            {
+              "problemKey": "leetcode:48",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "48"
+            },
+            {
+              "problemKey": "leetcode:7",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "7"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sayo",
+      "displayName": "현지희",
+      "githubUsername": "jhee22",
+      "active": true,
+      "submissionsPath": "submissions/jhee22",
+      "submissions": [
+        {
+          "id": "sayo:leetcode:1",
+          "userId": "sayo",
+          "problemKey": "leetcode:1",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "1",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/jhee22/top-interview-easy/1/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-22T07:28:49.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "sayo:leetcode:122",
+          "userId": "sayo",
+          "problemKey": "leetcode:122",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "122",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/jhee22/top-interview-easy/122/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-20T13:12:00.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "sayo:leetcode:136",
+          "userId": "sayo",
+          "problemKey": "leetcode:136",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "136",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/jhee22/top-interview-easy/136/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-21T14:36:10.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "sayo:leetcode:189",
+          "userId": "sayo",
+          "problemKey": "leetcode:189",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "189",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/jhee22/top-interview-easy/189/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-20T13:58:11.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "sayo:leetcode:217",
+          "userId": "sayo",
+          "problemKey": "leetcode:217",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "217",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/jhee22/top-interview-easy/217/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-20T13:58:11.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "sayo:leetcode:26",
+          "userId": "sayo",
+          "problemKey": "leetcode:26",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "26",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/jhee22/top-interview-easy/26/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-20T13:12:00.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "sayo:leetcode:350",
+          "userId": "sayo",
+          "problemKey": "leetcode:350",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "350",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/jhee22/top-interview-easy/350/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-21T14:36:10.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "sayo:leetcode:36",
+          "userId": "sayo",
+          "problemKey": "leetcode:36",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "36",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/jhee22/top-interview-easy/36/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-22T07:28:49.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        },
+        {
+          "id": "sayo:leetcode:66",
+          "userId": "sayo",
+          "problemKey": "leetcode:66",
+          "sourceKey": "top-interview-easy",
+          "submissionKey": "66",
+          "status": "SOLVED",
+          "language": "JAVA",
+          "solutionPath": "submissions/jhee22/top-interview-easy/66/Solution.java",
+          "source": "solution-file",
+          "submittedAt": "2026-07-22T07:28:49.000Z",
+          "generatedAt": "2026-07-22T11:49:36.905Z"
+        }
+      ],
+      "activity": [
+        {
+          "date": "2026-07-20",
+          "solved": 4,
+          "submissions": [
+            {
+              "problemKey": "leetcode:122",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "122"
+            },
+            {
+              "problemKey": "leetcode:189",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "189"
+            },
+            {
+              "problemKey": "leetcode:217",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "217"
+            },
+            {
+              "problemKey": "leetcode:26",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "26"
+            }
+          ]
+        },
+        {
+          "date": "2026-07-21",
+          "solved": 2,
+          "submissions": [
+            {
+              "problemKey": "leetcode:136",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "136"
+            },
+            {
+              "problemKey": "leetcode:350",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "350"
+            }
+          ]
+        },
+        {
+          "date": "2026-07-22",
+          "solved": 3,
+          "submissions": [
+            {
+              "problemKey": "leetcode:1",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "1"
+            },
+            {
+              "problemKey": "leetcode:36",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "36"
+            },
+            {
+              "problemKey": "leetcode:66",
+              "sourceKey": "top-interview-easy",
+              "submissionKey": "66"
             }
           ]
         }

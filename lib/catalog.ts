@@ -1,16 +1,19 @@
 import catalogData from "@/data/problem-catalog.json";
 
-export type Difficulty = "easy" | "medium" | "hard";
+export type CatalogProvider = "leetcode" | "programmers" | "swea";
 
 export type CatalogProblem = {
-  leetcodeId: number;
-  slug: string;
+  provider: CatalogProvider;
+  problemId: string;
+  problemKey: string;
   title: string;
-  difficulty: Difficulty;
+  difficulty: string;
+  sourceUrl: string;
+  slug?: string;
 };
 
 export type CatalogListItem = {
-  slug: string;
+  problemKey: string;
   order: number;
   section: string;
   submissionKey: string;
@@ -34,14 +37,14 @@ export type ProblemCatalog = {
 
 export const catalog = catalogData as ProblemCatalog;
 
-export const problemBySlug = new Map(catalog.problems.map((problem) => [problem.slug, problem]));
+export const problemByKey = new Map(catalog.problems.map((problem) => [problem.problemKey, problem]));
 export const listByKey = new Map(catalog.lists.map((list) => [list.key, list]));
-export const catalogSlugs = new Set(catalog.problems.map((problem) => problem.slug));
+export const catalogProblemKeys = new Set(catalog.problems.map((problem) => problem.problemKey));
 
-export function getProblem(slug: string) {
-  const problem = problemBySlug.get(slug);
+export function getProblem(problemKey: string) {
+  const problem = problemByKey.get(problemKey);
   if (!problem) {
-    throw new Error(`Unknown problem slug: ${slug}`);
+    throw new Error(`Unknown problem key: ${problemKey}`);
   }
   return problem;
 }
@@ -57,10 +60,10 @@ export function getList(key: string) {
 export function getListProblems(list: CatalogList) {
   return list.items.map((item) => ({
     ...item,
-    problem: getProblem(item.slug),
+    problem: getProblem(item.problemKey),
   }));
 }
 
-export function getProblemLeetCodeUrl(slug: string) {
-  return `https://leetcode.com/problems/${slug}/`;
+export function getProblemSourceUrl(problemKey: string) {
+  return getProblem(problemKey).sourceUrl;
 }

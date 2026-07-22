@@ -160,7 +160,7 @@ async function buildUserActivity({ user, submissions, allPaths }) {
     const day = days.get(date) ?? { date, solved: 0, submissions: [] };
     day.solved += 1;
     day.submissions.push({
-      problemSlug: submission.problemSlug,
+      problemKey: submission.problemKey,
       sourceKey: submission.sourceKey,
       submissionKey: submission.submissionKey,
     });
@@ -332,13 +332,13 @@ function getSubmissionTargets(catalog) {
     }
 
     for (const item of list.items) {
-      const problemSlug = typeof item.slug === "string" ? item.slug.trim() : "";
+      const problemKey = typeof item.problemKey === "string" ? item.problemKey.trim() : "";
       const submissionKey = typeof item.submissionKey === "string" ? item.submissionKey.trim() : "";
-      if (!problemSlug || !submissionKey) {
-        throw new Error(`Catalog list ${sourceKey} has an item missing slug or submissionKey.`);
+      if (!problemKey || !submissionKey) {
+        throw new Error(`Catalog list ${sourceKey} has an item missing problemKey or submissionKey.`);
       }
 
-      targets.push({ sourceKey, submissionKey, problemSlug });
+      targets.push({ sourceKey, submissionKey, problemKey });
     }
   }
 
@@ -364,7 +364,7 @@ function shouldReplaceSubmission(existing, candidate) {
 }
 
 async function collectUserSubmissions({ user, submissionTargets, allPaths, generatedAt }) {
-  const submissionsBySlug = new Map();
+  const submissionsByProblemKey = new Map();
 
   for (const target of submissionTargets) {
     const submissionRoot = `${user.submissionsPath}/${target.sourceKey}/${target.submissionKey}`;
@@ -382,9 +382,9 @@ async function collectUserSubmissions({ user, submissionTargets, allPaths, gener
     if (!hasMeta) {
       const submittedAt = await getLatestCommitTime(solutionPath);
       const submission = {
-        id: `${user.id}:${target.problemSlug}`,
+        id: `${user.id}:${target.problemKey}`,
         userId: user.id,
-        problemSlug: target.problemSlug,
+        problemKey: target.problemKey,
         sourceKey: target.sourceKey,
         submissionKey: target.submissionKey,
         status: "SOLVED",
@@ -396,9 +396,9 @@ async function collectUserSubmissions({ user, submissionTargets, allPaths, gener
         submittedAt,
         generatedAt,
       };
-      const existing = submissionsBySlug.get(target.problemSlug);
+      const existing = submissionsByProblemKey.get(target.problemKey);
       if (!existing || shouldReplaceSubmission(existing, submission)) {
-        submissionsBySlug.set(target.problemSlug, submission);
+        submissionsByProblemKey.set(target.problemKey, submission);
       }
       continue;
     }
@@ -407,9 +407,9 @@ async function collectUserSubmissions({ user, submissionTargets, allPaths, gener
     const status = parsed.status ?? (solutionPath ? "SOLVED" : "REVIEWING");
     const submittedAt = await getLatestCommitTime(solutionPath ?? metaPath);
     const submission = {
-      id: `${user.id}:${target.problemSlug}`,
+      id: `${user.id}:${target.problemKey}`,
       userId: user.id,
-      problemSlug: target.problemSlug,
+      problemKey: target.problemKey,
       sourceKey: target.sourceKey,
       submissionKey: target.submissionKey,
       status,
@@ -424,13 +424,13 @@ async function collectUserSubmissions({ user, submissionTargets, allPaths, gener
       rawMeta: parsed.rawMeta,
       generatedAt,
     };
-    const existing = submissionsBySlug.get(target.problemSlug);
+    const existing = submissionsByProblemKey.get(target.problemKey);
     if (!existing || shouldReplaceSubmission(existing, submission)) {
-      submissionsBySlug.set(target.problemSlug, submission);
+      submissionsByProblemKey.set(target.problemKey, submission);
     }
   }
 
-  return [...submissionsBySlug.values()].sort((left, right) => left.problemSlug.localeCompare(right.problemSlug));
+  return [...submissionsByProblemKey.values()].sort((left, right) => left.problemKey.localeCompare(right.problemKey));
 }
 
 async function buildProgress() {
