@@ -11,6 +11,7 @@ import {
   renderReviewFileWarning,
   renderReviewSummary,
   renderReviewWarning,
+  reviewContentKey,
   reviewFileKey,
   sanitizeReviewMarkdown,
 } from "./opencode-review-core.mjs";
@@ -219,7 +220,7 @@ function redactModelText(value, source) {
   return value.split(source).join("[submitted source redacted]");
 }
 
-async function reviewOneFile({ file, readSource, openCodeClient, model, apiKey }) {
+async function reviewOneFile({ file, readSource, openCodeClient, model, apiKey, cachedContentKey }) {
   let stage = "path-parse";
   let filePath = file.path;
   try {
@@ -227,6 +228,10 @@ async function reviewOneFile({ file, readSource, openCodeClient, model, apiKey }
     filePath = parsed.path;
     stage = "source-read";
     const source = await readSource(parsed.path);
+    const contentKey = reviewContentKey(source);
+    if (cachedContentKey === contentKey) {
+      return { path: filePath, status: "reused", contentKey };
+    }
     const prompt = buildReviewPrompt({ path: parsed.path, language: parsed.extension, source });
     stage = "model-request";
     const raw = await openCodeClient.review({ model, apiKey, prompt });
@@ -234,6 +239,7 @@ async function reviewOneFile({ file, readSource, openCodeClient, model, apiKey }
     return {
       path: filePath,
       status: "reviewed",
+      contentKey,
       markdown: sanitizeReviewMarkdown(redactModelText(raw, source)),
     };
   } catch (error) {
@@ -336,10 +342,19 @@ async function reviewPullRequest({
       );
 
       for (const file of paths) {
-        const result = await reviewOneFile({ file, readSource, openCodeClient, model, apiKey });
+        const fileComment = fileComments.get(reviewFileKey(file.path));
+        const result = await reviewOneFile({
+          file,
+          readSource,
+          openCodeClient,
+          model,
+          apiKey,
+          cachedContentKey: fileComment?.contentKey,
+        });
         results.push(result);
+        if (result.status === "reused") continue;
         const body = result.status === "reviewed"
-          ? renderReviewFileComment({ path: result.path, headSha, runUrl, mascotUrl, markdown: result.markdown })
+          ? renderReviewFileComment({ path: result.path, contentKey: result.contentKey, headSha, runUrl, mascotUrl, markdown: result.markdown })
           : renderReviewFileWarning({ path: result.path, headSha, runUrl, mascotUrl, failure: result.failure });
         if (!commentDiscoveryAvailable) {
           deliveryFailureCount += 1;
@@ -348,7 +363,7 @@ async function reviewPullRequest({
         try {
           await githubClient.upsertReviewComment({
             pullNumber,
-            commentId: fileComments.get(reviewFileKey(result.path))?.id,
+            commentId: fileComment?.id,
             body,
           });
         } catch {
@@ -369,12 +384,14 @@ async function reviewPullRequest({
       }
 
       const reviewedCount = results.filter((result) => result.status === "reviewed").length;
+      const reusedCount = results.filter((result) => result.status === "reused").length;
       const warningCount = results.filter((result) => result.status === "warning").length;
       const summaryArgs = {
         headSha,
         runUrl,
         mascotUrl,
         reviewedCount,
+        reusedCount,
         warningCount,
         deliveryFailureCount,
         ...(paths.length === 0 ? { message: "변경된 solution.* 파일이 없어 리뷰를 생략했습니다." } : {}),

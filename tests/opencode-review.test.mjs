@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 
 const { defaultSourceReader, loadTrustedPullRequestScope, main, reviewPullRequest } = await import("../scripts/opencode-review.mjs");
 const { GitHubDeliveryFailure, OpenCodeClient } = await import("../scripts/opencode-review-clients.mjs");
-const { ReviewFailure, reviewFileKey } = await import("../scripts/opencode-review-core.mjs");
+const { ReviewFailure, reviewContentKey, reviewContentMarker, reviewFileKey } = await import("../scripts/opencode-review-core.mjs");
 const { isSubmissionArtifactName } = await import("../scripts/validate-submission-pr.mjs");
 const execFileAsync = promisify(execFile);
 const scriptPath = path.resolve("scripts/opencode-review.mjs");
@@ -84,6 +84,98 @@ function reviewOptions(overrides = {}) {
 }
 
 describe("reviewPullRequest", () => {
+  it("reuses an unchanged successful file review without calling OpenCode", async () => {
+    const source = "class Solution {}";
+    const mutations = [];
+    let reviewCalls = 0;
+    let sourceReads = 0;
+    const { options } = reviewOptions({
+      readFile: async () => { sourceReads += 1; return source; },
+      openCodeClient: { review: async () => { reviewCalls += 1; return passResult(); } },
+    });
+    options.githubClient.listManagedReviewComments = async () => [
+      { id: 31, kind: "summary" },
+      { id: 32, kind: "file", key: reviewFileKey(firstPath), contentKey: reviewContentKey(source) },
+    ];
+    options.githubClient.upsertReviewComment = async (value) => { mutations.push(value); };
+
+    const result = await reviewPullRequest(options);
+
+    expect(sourceReads).toBe(1);
+    expect(reviewCalls).toBe(0);
+    expect(mutations).toHaveLength(1);
+    expect(mutations[0].commentId).toBe(31);
+    expect(result.results).toMatchObject([{ path: firstPath, status: "reused" }]);
+    expect(result.markdown).toContain("리뷰 완료: 0개");
+    expect(result.markdown).toContain("리뷰 유지: 1개");
+  });
+
+  it("reviews changed content and updates the existing file comment digest", async () => {
+    const source = "class Solution { int changed; }";
+    const mutations = [];
+    let reviewCalls = 0;
+    const { options } = reviewOptions({
+      readFile: async () => source,
+      openCodeClient: { review: async () => { reviewCalls += 1; return passResult(); } },
+    });
+    options.githubClient.listManagedReviewComments = async () => [
+      { id: 31, kind: "summary" },
+      { id: 32, kind: "file", key: reviewFileKey(firstPath), contentKey: reviewContentKey("old source") },
+    ];
+    options.githubClient.upsertReviewComment = async (value) => { mutations.push(value); };
+
+    const result = await reviewPullRequest(options);
+
+    expect(reviewCalls).toBe(1);
+    expect(result.results).toMatchObject([{ path: firstPath, status: "reviewed", contentKey: reviewContentKey(source) }]);
+    expect(mutations[0].commentId).toBe(32);
+    expect(mutations[0].body).toContain(reviewContentMarker(reviewContentKey(source)));
+  });
+
+  it("reviews legacy or warning comments that have no successful content digest", async () => {
+    let reviewCalls = 0;
+    const { options } = reviewOptions({
+      openCodeClient: { review: async () => { reviewCalls += 1; return passResult(); } },
+    });
+    options.githubClient.listManagedReviewComments = async () => [
+      { id: 32, kind: "file", key: reviewFileKey(firstPath) },
+    ];
+
+    const result = await reviewPullRequest(options);
+
+    expect(reviewCalls).toBe(1);
+    expect(result.results[0].status).toBe("reviewed");
+  });
+
+  it("mixes reused and newly reviewed files without rewriting the reused comment", async () => {
+    const sources = new Map([
+      [firstPath, "class Solution { int first; }"],
+      [secondPath, "class Solution { int second; }"],
+    ]);
+    const mutations = [];
+    const reviewPrompts = [];
+    const { options } = reviewOptions({
+      changedFiles: [{ status: "M", path: firstPath }, { status: "M", path: secondPath }],
+      readFile: async (filePath) => sources.get(filePath),
+      openCodeClient: { review: async ({ prompt }) => { reviewPrompts.push(prompt); return passResult(); } },
+    });
+    options.githubClient.listManagedReviewComments = async () => [
+      { id: 31, kind: "summary" },
+      { id: 32, kind: "file", key: reviewFileKey(firstPath), contentKey: reviewContentKey(sources.get(firstPath)) },
+      { id: 33, kind: "file", key: reviewFileKey(secondPath), contentKey: reviewContentKey("old second source") },
+    ];
+    options.githubClient.upsertReviewComment = async (value) => { mutations.push(value); };
+
+    const result = await reviewPullRequest(options);
+
+    expect(reviewPrompts).toHaveLength(1);
+    expect(reviewPrompts[0]).toContain(secondPath);
+    expect(result.results.map(({ status }) => status)).toEqual(["reused", "reviewed"]);
+    expect(mutations.map(({ commentId }) => commentId)).toEqual([33, 31]);
+    expect(result.markdown).toContain("리뷰 완료: 1개");
+    expect(result.markdown).toContain("리뷰 유지: 1개");
+  });
+
   it("reviews and publishes each changed solution before starting the next one", async () => {
     const checks = [];
     const completed = [];
