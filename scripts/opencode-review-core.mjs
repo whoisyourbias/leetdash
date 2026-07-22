@@ -327,6 +327,8 @@ function parseReviewResult(raw, expectedPath) {
 
   assertArray(result.blocking_findings, assertBlockingFinding);
   assertArray(result.non_blocking_suggestions, assertSuggestion);
+  const hasNonComplexityFinding = result.blocking_findings.some((finding) => finding.category !== "complexity");
+  const hasComplexityFinding = result.blocking_findings.some((finding) => finding.category === "complexity");
 
   if (
     result.path !== expectedPath
@@ -337,7 +339,8 @@ function parseReviewResult(raw, expectedPath) {
     ))
     || (result.verdict === "FAIL" && (
       result.blocking_findings.length === 0
-      || (result.correctness.status !== "FAIL" && result.complexity.acceptable)
+      || (hasNonComplexityFinding && result.correctness.status !== "FAIL")
+      || (hasComplexityFinding && result.complexity.acceptable)
     ))
   ) {
     throw resultValidationFailure();

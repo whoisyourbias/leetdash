@@ -211,6 +211,61 @@ describe("review result parsing", () => {
       expect.objectContaining({ stage: "result-validation", reason: "REVIEW_RESULT_INVALID" }),
     );
   });
+
+  it("rejects mixed compile and complexity findings when correctness passes", () => {
+    const result = {
+      ...clone(failResult),
+      correctness: { ...failResult.correctness, status: "PASS" },
+      complexity: { ...failResult.complexity, acceptable: false },
+      blocking_findings: [
+        { ...clone(failResult.blocking_findings[0]), category: "compile" },
+        {
+          category: "complexity",
+          reason: "The nested loop is quadratic.",
+          evidence: "Both loops can examine every input item.",
+          counterexample: { input: null, expected: null, actual: null },
+        },
+      ],
+    };
+
+    expect(() => parseReviewResult(JSON.stringify(result), reviewPath)).toThrowError(
+      expect.objectContaining({ stage: "result-validation", reason: "REVIEW_RESULT_INVALID" }),
+    );
+  });
+
+  it("accepts mixed compile and complexity findings when correctness fails", () => {
+    const result = {
+      ...clone(failResult),
+      complexity: { ...failResult.complexity, acceptable: false },
+      blocking_findings: [
+        { ...clone(failResult.blocking_findings[0]), category: "compile" },
+        {
+          category: "complexity",
+          reason: "The nested loop is quadratic.",
+          evidence: "Both loops can examine every input item.",
+          counterexample: { input: null, expected: null, actual: null },
+        },
+      ],
+    };
+
+    expect(parseReviewResult(JSON.stringify(result), reviewPath)).toEqual(result);
+  });
+
+  it("rejects a complexity finding when complexity is acceptable", () => {
+    const result = {
+      ...clone(failResult),
+      blocking_findings: [{
+        category: "complexity",
+        reason: "The nested loop is quadratic.",
+        evidence: "Both loops can examine every input item.",
+        counterexample: { input: null, expected: null, actual: null },
+      }],
+    };
+
+    expect(() => parseReviewResult(JSON.stringify(result), reviewPath)).toThrowError(
+      expect.objectContaining({ stage: "result-validation", reason: "REVIEW_RESULT_INVALID" }),
+    );
+  });
 });
 
 describe("review Markdown rendering", () => {
