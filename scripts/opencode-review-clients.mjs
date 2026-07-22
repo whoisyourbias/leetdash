@@ -1,9 +1,8 @@
-import { ReviewFailure } from "./opencode-review-core.mjs";
+import { parseManagedReviewMarker, ReviewFailure } from "./opencode-review-core.mjs";
 
 const openCodeChatCompletionsUrl = "https://opencode.ai/zen/go/v1/chat/completions";
 const openCodeConfiguredModel = "opencode-go/kimi-k2.7-code";
 const openCodeApiModel = "kimi-k2.7-code";
-const reviewCommentMarker = "<!-- leetdash-opencode-review -->";
 const openCodeRequestTimeoutMs = 180_000;
 
 function extractRequestId(response) {
@@ -265,17 +264,34 @@ class GitHubReviewClient {
     }
   }
 
-  async upsertReviewComment({ pullNumber, body }) {
+  async listManagedReviewComments(pullNumber) {
     const comments = await this.listIssueComments(pullNumber);
-    const existing = comments.find((comment) => (
-      comment?.user?.login === "github-actions[bot]"
-      && typeof comment.body === "string"
-      && comment.body.includes(reviewCommentMarker)
-    ));
-    if (existing) {
-      return this.request("PATCH", `/issues/comments/${existing.id}`, { body: { body }, FailureType: GitHubDeliveryFailure });
+    return comments.flatMap((comment) => {
+      if (comment?.user?.login !== "github-actions[bot]" || !Number.isSafeInteger(comment.id)) return [];
+      const marker = parseManagedReviewMarker(comment.body);
+      return marker ? [{ id: comment.id, ...marker }] : [];
+    });
+  }
+
+  upsertReviewComment({ pullNumber, commentId, body }) {
+    if (commentId !== undefined) {
+      if (!Number.isSafeInteger(commentId)) throw new GitHubDeliveryFailure({});
+      return this.request("PATCH", `/issues/comments/${commentId}`, {
+        body: { body },
+        FailureType: GitHubDeliveryFailure,
+      });
     }
-    return this.request("POST", `/issues/${pullNumber}/comments`, { body: { body }, FailureType: GitHubDeliveryFailure });
+    return this.request("POST", `/issues/${pullNumber}/comments`, {
+      body: { body },
+      FailureType: GitHubDeliveryFailure,
+    });
+  }
+
+  deleteReviewComment(commentId) {
+    if (!Number.isSafeInteger(commentId)) throw new GitHubDeliveryFailure({});
+    return this.request("DELETE", `/issues/comments/${commentId}`, {
+      FailureType: GitHubDeliveryFailure,
+    });
   }
 }
 
