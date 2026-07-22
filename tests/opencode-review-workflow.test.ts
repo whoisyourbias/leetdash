@@ -17,20 +17,29 @@ describe("trusted OpenCode review workflow", () => {
     expect(workflow).toContain('workflows: ["Deploy GitHub Pages"]');
     expect(workflow).toContain("types:\n      - completed");
     expect(workflow).toContain("github.event.workflow_run.event == 'pull_request'");
+    expect(workflow).toContain("github.event.workflow_run.conclusion == 'success'");
+    expect(workflow).not.toContain("workflow_run.pull_requests[0]");
     expect(workflow).not.toContain("pull_request_target:");
   });
 
-  it("checks out and executes only the trusted pull-request base revision", () => {
+  it("resolves a fork PR from trusted default-branch code before checking out its base", () => {
     const workflow = readWorkflow();
 
-    expect(workflow).toContain("uses: actions/checkout@v6");
-    expect(workflow).toContain("ref: ${{ github.event.workflow_run.pull_requests[0].base.sha }}");
-    expect(workflow).toContain("persist-credentials: false");
+    expect(workflow.match(/uses: actions\/checkout@v6/g)).toHaveLength(2);
+    expect(workflow.match(/persist-credentials: false/g)).toHaveLength(2);
+    expect(workflow).toContain("ref: ${{ github.event.repository.default_branch }}");
+    expect(workflow).toContain("id: resolve-pr");
+    expect(workflow).toContain("node scripts/resolve-opencode-review-pr.mjs");
+    expect(workflow).toContain("OPENCODE_BASE_BRANCH: ${{ github.event.repository.default_branch }}");
+    expect(workflow).toContain("OPENCODE_HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}");
+    expect(workflow).toContain("OPENCODE_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}");
+    expect(workflow).toContain("OPENCODE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}");
+    expect(workflow).toContain("ref: ${{ steps.resolve-pr.outputs.base-sha }}");
     expect(workflow).not.toMatch(/ref:.*(?:head_sha|\.head\.sha)/);
     expect(workflow).toContain("node scripts/opencode-review.mjs \\");
-    expect(workflow).toContain('--base "${{ github.event.workflow_run.pull_requests[0].base.sha }}"');
-    expect(workflow).toContain('--head "${{ github.event.workflow_run.pull_requests[0].head.sha }}"');
-    expect(workflow).toContain('--pull-number "${{ github.event.workflow_run.pull_requests[0].number }}"');
+    expect(workflow).toContain('--base "${{ steps.resolve-pr.outputs.base-sha }}"');
+    expect(workflow).toContain('--head "${{ steps.resolve-pr.outputs.head-sha }}"');
+    expect(workflow).toContain('--pull-number "${{ steps.resolve-pr.outputs.pull-number }}"');
     expect(workflow).not.toContain("--submission-only");
   });
 
