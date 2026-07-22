@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -28,6 +30,18 @@ The loop is easy to follow.
 
 #### Readability
 - Name the sentinel value at line 4.`;
+
+describe("Chalsakbot mascot asset", () => {
+  it("ships a compact 512px PNG", async () => {
+    const image = await readFile(new URL("../public/chalsakbot.png", import.meta.url));
+
+    expect(image.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    expect(image.readUInt32BE(16)).toBe(512);
+    expect(image.readUInt32BE(20)).toBe(512);
+    expect(image.byteLength).toBeGreaterThan(10_000);
+    expect(image.byteLength).toBeLessThan(1_000_000);
+  });
+});
 
 describe("submission path parsing", () => {
   it("parses only the canonical five-segment solution path", () => {
