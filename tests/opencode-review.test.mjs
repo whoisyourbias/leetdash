@@ -381,6 +381,39 @@ describe("reviewPullRequest", () => {
     expect(result.conclusion).toBe("success");
     expect(completed[0].summary).toContain("not applicable");
   });
+
+  it.each([
+    ["base SHA mismatch", { baseSha: "other-base" }],
+    ["head SHA mismatch", { headSha: "other-head" }],
+    ["incomplete file list", { changedFilesCount: 2 }],
+    ["ownership rejection", { files: [{ status: "added", filename: secondPath }] }],
+    ["catalog rejection", { files: [{ status: "added", filename: "submissions/ada/top-interview-easy/999/solution.java" }] }],
+  ])("does not turn trusted-scope %s into a successful check", async (_name, override) => {
+    const { options, completed } = reviewOptions({ submissionOnly: undefined, changedFiles: undefined });
+    const files = override.files ?? [{ status: "added", filename: firstPath }];
+    options.loadReviewScope = () => loadTrustedPullRequestScope({
+      githubClient: {
+        getPullRequest: async () => ({
+          number: 42,
+          changed_files: override.changedFilesCount ?? files.length,
+          user: { login: "ada" },
+          base: { sha: override.baseSha ?? "base-sha" },
+          head: { sha: override.headSha ?? "head-sha", repo: { full_name: "fork-user/leetdash" } },
+        }),
+        listPullRequestFiles: async () => files,
+      },
+      pullNumber: 42,
+      baseSha: "base-sha",
+      headSha: "head-sha",
+      catalog,
+      users,
+    });
+
+    const result = await reviewPullRequest(options);
+
+    expect(result.conclusion).toBe("failure");
+    expect(completed[0].conclusion).toBe("failure");
+  });
 });
 
 describe("trusted pull-request scope", () => {
@@ -686,7 +719,7 @@ describe("opencode-review CLI", () => {
     expect(completed[0].conclusion).toBe("success");
   });
 
-  it("exits zero after safely completing a changed-file discovery warning", async () => {
+  it("exits nonzero after safely completing a changed-file discovery failure", async () => {
     const { options, completed } = reviewOptions();
     const calls = [];
     const rawFailure = "changed-files-secret";
@@ -709,8 +742,8 @@ describe("opencode-review CLI", () => {
     });
 
     expect(calls).toEqual(["check", "changed-files"]);
-    expect(outcome.exitCode).toBe(0);
-    expect(completed[0].conclusion).toBe("success");
+    expect(outcome.exitCode).toBe(1);
+    expect(completed[0].conclusion).toBe("failure");
     expect(completed[0].summary).toContain("변경된 제출 파일 목록을 가져오지 못했습니다.");
     expect(completed[0].summary).not.toContain(rawFailure);
   });

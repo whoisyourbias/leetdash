@@ -244,6 +244,7 @@ async function reviewPullRequest({
   let markdown;
   let conclusion = "success";
   let activeSubmissionOnly = false;
+  let trustedScopeValidated = typeof submissionOnly === "boolean";
 
   try {
     let activeChangedFiles = changedFiles;
@@ -261,6 +262,7 @@ async function reviewPullRequest({
       if (!scope || typeof scope.submissionOnly !== "boolean" || !Array.isArray(scope.changedFiles)) {
         throw changedFilesLoadFailure();
       }
+      trustedScopeValidated = true;
       activeSubmissionOnly = scope.submissionOnly;
       activeChangedFiles = scope.changedFiles;
     }
@@ -301,7 +303,7 @@ async function reviewPullRequest({
     }
   } catch (error) {
     failure = error instanceof ReviewFailure ? error : failureForStage(stage);
-    conclusion = "success";
+    conclusion = trustedScopeValidated ? "success" : "failure";
     markdown = renderReviewWarning({ headSha, failure, runUrl });
   }
 
