@@ -23,7 +23,7 @@
 3. 풀이를 `submissions/<githubUsername>/<sourceKey>/<submissionKey>/` 아래에 추가하고 커밋합니다.
 4. 작업 브랜치를 본인의 Fork에 push합니다.
 5. `본인 Fork:작업 브랜치`에서 `원본 레포:master`를 대상으로 PR을 만듭니다.
-6. GitHub Actions가 검증과 정적 빌드를 실행합니다.
+6. GitHub Actions가 검증과 정적 빌드를 실행하고, 제출 전용 PR의 `solution.*` 파일을 찰싹봇이 리뷰합니다.
 7. PR이 `master`에 머지되면 GitHub Pages에 대시보드가 배포됩니다.
 
 - 참가자는 Fork의 master에 직접 커밋하지 않고 매 작업마다 새 브랜치를 사용합니다. 
@@ -34,7 +34,9 @@
 
 제출 대상이 `data/problem-catalog.json`에 아직 없으면 운영자가 카탈로그 변경 PR을 먼저 머지합니다. 참가자는 그 변경이 `master`에 반영된 뒤 풀이 파일만 담은 별도 PR을 만듭니다.
 
-PR은 `validate` 검증과 리뷰 조건을 통과하면 다른 PR의 GitHub Pages 배포 완료를 기다리지 않고 머지합니다. 저장소는 merge commit만 허용하며, squash merge와 rebase merge는 사용하지 않습니다.
+PR은 `validate` 검증과 `opencode-review` 조건을 통과하면 다른 PR의 GitHub Pages 배포 완료를 기다리지 않고 머지합니다. 찰싹봇은 변경된 `solution.*` 파일을 하나씩 순서대로 리뷰하고, 각 OpenCode 응답 직후 해당 파일의 한국어 코멘트를 게시합니다. 파일 하나의 리뷰나 코멘트 전달이 실패해도 경고를 남기고 다음 파일을 계속 처리합니다.
+
+저장소는 merge commit만 허용하며, squash merge와 rebase merge는 사용하지 않습니다.
 
 ## 참가자 등록
 
