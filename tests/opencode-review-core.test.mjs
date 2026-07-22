@@ -89,6 +89,7 @@ describe("review prompt", () => {
       "class Solution { return new int[] {0, 1}; }",
     ].forEach((value) => expect(prompt.toLowerCase()).toContain(value.toLowerCase()));
     expect(prompt).toContain("Return exactly one JSON object matching schema_version 1 below.");
+    expect(prompt).toContain("correctness.status means end-to-end submission correctness, including compilation, runtime safety, termination, and platform/judge contract compliance. Every non-complexity blocking defect must set correctness.status to FAIL; complexity is the only independent blocking axis.");
   });
 });
 
@@ -183,6 +184,33 @@ describe("review result parsing", () => {
 
     expect(parseReviewResult(JSON.stringify(complexityFailure), reviewPath)).toEqual(complexityFailure);
   });
+
+  it.each(["compile", "runtime", "termination", "platform-contract"])("accepts %s FAIL findings when correctness fails", (category) => {
+    const result = {
+      ...clone(failResult),
+      blocking_findings: [{
+        ...clone(failResult.blocking_findings[0]),
+        category,
+      }],
+    };
+
+    expect(parseReviewResult(JSON.stringify(result), reviewPath)).toEqual(result);
+  });
+
+  it("rejects a compile FAIL finding when correctness passes", () => {
+    const result = {
+      ...clone(failResult),
+      correctness: { ...failResult.correctness, status: "PASS" },
+      blocking_findings: [{
+        ...clone(failResult.blocking_findings[0]),
+        category: "compile",
+      }],
+    };
+
+    expect(() => parseReviewResult(JSON.stringify(result), reviewPath)).toThrowError(
+      expect.objectContaining({ stage: "result-validation", reason: "REVIEW_RESULT_INVALID" }),
+    );
+  });
 });
 
 describe("review Markdown rendering", () => {
@@ -254,6 +282,35 @@ describe("review Markdown rendering", () => {
     expect(markdown).toContain("abc 123\\|def");
     expect(markdown).toContain("Fine summary\\|only.");
     expect(markdown).toContain("https://example.test/run 42\\|x");
+  });
+
+  it("escapes HTML-significant characters in every dynamic renderer value", () => {
+    const result = {
+      ...clone(failResult),
+      summary: "Summary & <tag>",
+      blocking_findings: [{
+        ...clone(failResult.blocking_findings[0]),
+        evidence: "Evidence & <details>",
+      }],
+      non_blocking_suggestions: [{ category: "style", suggestion: "Suggestion & <improvement>" }],
+    };
+    const review = renderReviewComment({ headSha: "abc123", results: [result], runUrl: "https://example.test/run" });
+    const infrastructure = renderInfrastructureFailure({
+      headSha: "abc123",
+      failure: new ReviewFailure({
+        stage: "model-request",
+        reason: "MODEL_REQUEST_FAILED",
+        detail: "Detail & <external>",
+      }),
+      runUrl: "https://example.test/run",
+    });
+
+    [
+      "Summary &amp; &lt;tag&gt;",
+      "Evidence &amp; &lt;details&gt;",
+      "Suggestion &amp; &lt;improvement&gt;",
+      "Detail &amp; &lt;external&gt;",
+    ].forEach((value) => expect(`${review}\n${infrastructure}`).toContain(value));
   });
 });
 

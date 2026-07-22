@@ -162,6 +162,7 @@ Blocking policy:
 - Do not assume unstated requirements. Judge using the supplied problem and metadata.
 - If verdict is FAIL, include at least one blocking finding. Give concrete evidence and, whenever applicable, a minimal counterexample with expected and actual behavior.
 - If verdict is PASS, correctness.status must be PASS, complexity.acceptable must be true, and blocking_findings must be empty.
+- correctness.status means end-to-end submission correctness, including compilation, runtime safety, termination, and platform/judge contract compliance. Every non-complexity blocking defect must set correctness.status to FAIL; complexity is the only independent blocking axis.
 - Echo submission_path exactly in path.
 
 SUBMISSION
@@ -346,7 +347,12 @@ function parseReviewResult(raw, expectedPath) {
 }
 
 function markdownText(value) {
-  return String(value ?? "").replace(/[\u0000-\u001F\u007F]/g, " ").replace(/\|/g, "\\|");
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/[\u0000-\u001F\u007F]/g, " ")
+    .replace(/\|/g, "\\|");
 }
 
 function renderCounterexample(counterexample) {
