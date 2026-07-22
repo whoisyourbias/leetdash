@@ -107,7 +107,6 @@ describe("OpenCodeClient", () => {
     expect(requests[0].init.headers.Authorization).toBe("Bearer test-secret");
     expect(JSON.parse(requests[0].init.body)).toEqual({
       model: "kimi-k2.7-code",
-      temperature: 0,
       messages: [{ role: "user", content: "review prompt" }],
     });
   });

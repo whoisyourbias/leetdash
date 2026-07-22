@@ -173,7 +173,6 @@ class OpenCodeClient {
             },
             body: JSON.stringify({
               model: openCodeApiModel,
-              temperature: 0,
               messages: [{ role: "user", content: prompt }],
             }),
             signal: controller.signal,
