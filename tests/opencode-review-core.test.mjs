@@ -2,374 +2,231 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildReviewPrompt,
-  getLeetCodeLangSlug,
-  normalizeQuestionData,
   parseReviewResult,
   parseSubmissionSolutionPath,
-  renderInfrastructureFailure,
   renderReviewComment,
+  renderReviewWarning,
   ReviewFailure,
-  resolveCatalogProblem,
 } from "../scripts/opencode-review-core.mjs";
 
-const catalog = {
-  lists: [{ key: "top-interview-easy", items: [{ submissionKey: "1", slug: "two-sum" }] }],
-  problems: [{ leetcodeId: 1, slug: "two-sum", title: "Two Sum", difficulty: "easy" }],
-};
+const reviewPath = "submissions/ada/programmers/12906/solution.java";
+const resultKeys = [
+  "schema_version",
+  "path",
+  "overall",
+  "summary",
+  "bug_risks",
+  "complexity",
+  "readability",
+];
 
-describe("submission problem resolution", () => {
-  it("resolves a solution path through list item and canonical problem", () => {
-    expect(resolveCatalogProblem("submissions/ada/top-interview-easy/1/Solution.java", catalog)).toMatchObject({
-      user: "ada",
-      sourceKey: "top-interview-easy",
-      submissionKey: "1",
-      extension: "java",
-      slug: "two-sum",
-      problem: catalog.problems[0],
-    });
-  });
-
-  it.each([
-    ["submissions/ada/top-interview-easy/1/meta.json", "CATALOG_MAPPING_FAILED"],
-    ["submissions/ada/missing/1/Solution.java", "CATALOG_MAPPING_FAILED"],
-    ["submissions/ada/top-interview-easy/2/Solution.java", "CATALOG_MAPPING_FAILED"],
-  ])("fails closed for %s", (path, reason) => {
-    expect(() => resolveCatalogProblem(path, catalog)).toThrowError(
-      expect.objectContaining({ stage: "catalog-resolve", reason }),
-    );
-  });
-
-  it("parses only the canonical five-segment solution path", () => {
-    expect(parseSubmissionSolutionPath("submissions/ada/top-interview-easy/1/Solution.java")).toEqual({
-      path: "submissions/ada/top-interview-easy/1/Solution.java",
-      user: "ada",
-      sourceKey: "top-interview-easy",
-      submissionKey: "1",
-      filename: "Solution.java",
-      extension: "java",
-    });
-  });
-});
-
-const rawQuestion = {
-  content: "<p>Find two numbers.</p>",
-  exampleTestcases: "[2,7,11,15]\n9",
-  metaData: JSON.stringify({ name: "twoSum", params: [{ name: "nums", type: "integer[]" }] }),
-  codeSnippets: [
-    { lang: "Java", langSlug: "java", code: "class Solution { public int[] twoSum(int[] nums, int target) {} }" },
-    { lang: "Python3", langSlug: "python3", code: "class Solution:\n    def twoSum(self, nums, target):" },
-  ],
-  topicTags: [{ name: "Array", slug: "array" }, { name: "Hash Table", slug: "hash-table" }],
-};
-
-describe("review prompt", () => {
-  it("includes the complete submission and problem context", () => {
-    const resolved = resolveCatalogProblem("submissions/ada/top-interview-easy/1/Solution.java", catalog);
-    const question = normalizeQuestionData(rawQuestion, resolved.extension);
-    const prompt = buildReviewPrompt({
-      resolved,
-      question,
-      source: "class Solution { return new int[] {0, 1}; }",
-    });
-
-    [
-      "submissions/ada/top-interview-easy/1/Solution.java",
-      "language: java",
-      "leetcode_id: 1",
-      "title_slug: two-sum",
-      "title: Two Sum",
-      "difficulty: easy",
-      "<p>Find two numbers.</p>",
-      "[2,7,11,15]",
-      '"name": "twoSum"',
-      "class Solution { public int[] twoSum",
-      '"slug": "hash-table"',
-      "return exactly one JSON object",
-      '"schema_version": 1',
-      "class Solution { return new int[] {0, 1}; }",
-    ].forEach((value) => expect(prompt.toLowerCase()).toContain(value.toLowerCase()));
-    expect(prompt).toContain("Return exactly one JSON object matching schema_version 1 below.");
-    expect(prompt).toContain("correctness.status means end-to-end submission correctness, including compilation, runtime safety, termination, and platform/judge contract compliance. Every non-complexity blocking defect must set correctness.status to FAIL; complexity is the only independent blocking axis.");
-  });
-});
-
-const reviewPath = "submissions/ada/top-interview-easy/1/Solution.java";
-const passResult = {
-  schema_version: 1,
-  verdict: "PASS",
+const noIssueResult = {
+  schema_version: 2,
   path: reviewPath,
-  summary: "Correct hash-map solution.",
-  correctness: { status: "PASS", reason: "Returns the required pair for every valid input." },
-  complexity: { time: "O(n)", space: "O(n)", acceptable: true, reason: "Fits the constraints." },
-  blocking_findings: [],
-  non_blocking_suggestions: [],
+  overall: "No issue found",
+  summary: "No static risks are visible in the submitted code.",
+  bug_risks: [],
+  complexity: { time: "O(n)", space: "O(n)" },
+  readability: [],
 };
-const failResult = {
-  schema_version: 1,
-  verdict: "FAIL",
+
+const possibleIssueResult = {
+  schema_version: 2,
   path: reviewPath,
-  summary: "Returns the same index twice.",
-  correctness: { status: "FAIL", reason: "The lookup occurs after inserting the current index incorrectly." },
-  complexity: { time: "O(n)", space: "O(n)", acceptable: true, reason: "Complexity fits the constraints." },
-  blocking_findings: [{
-    category: "correctness",
-    reason: "The same element can be used twice.",
-    evidence: "The current index is accepted as its own complement.",
-    counterexample: { input: "[3,3], 6", expected: "[0,1]", actual: "[0,0]" },
+  overall: "Possible issue",
+  summary: "An index access may exceed the visible array bounds.",
+  bug_risks: [{
+    category: "index-range",
+    location: "line 8",
+    reason: "The code reads values[index + 1] without a preceding upper-bound check.",
+    trigger: "index is the final valid array position",
   }],
-  non_blocking_suggestions: [],
+  complexity: { time: "O(n)", space: "O(1)" },
+  readability: [],
+};
+
+const improvementResult = {
+  schema_version: 2,
+  path: reviewPath,
+  overall: "Improvement",
+  summary: "The implementation is readable but contains an unexplained constant.",
+  bug_risks: [],
+  complexity: { time: "O(n)", space: "O(1)" },
+  readability: [{
+    category: "magic-number",
+    location: "line 4",
+    suggestion: "Name the sentinel value to explain its role.",
+  }],
 };
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-describe("review result parsing", () => {
-  it("accepts schema-valid PASS and FAIL results as frozen objects", () => {
-    const parsedPass = parseReviewResult(JSON.stringify(passResult), passResult.path);
-    const parsedFail = parseReviewResult(JSON.stringify(failResult), failResult.path);
-
-    expect(parsedPass).toEqual(passResult);
-    expect(parsedFail).toEqual(failResult);
-    expect(Object.isFrozen(parsedPass)).toBe(true);
-    expect(Object.isFrozen(parsedFail)).toBe(true);
+describe("submission path parsing", () => {
+  it("parses only the canonical five-segment solution path", () => {
+    expect(parseSubmissionSolutionPath("submissions/ada/programmers/12906/Solution.java")).toEqual({
+      path: "submissions/ada/programmers/12906/Solution.java",
+      user: "ada",
+      sourceKey: "programmers",
+      submissionKey: "12906",
+      filename: "Solution.java",
+      extension: "java",
+    });
   });
 
+  it("rejects a non-solution path", () => {
+    expect(() => parseSubmissionSolutionPath("submissions/ada/programmers/12906/meta.json")).toThrowError(
+      expect.objectContaining({ stage: "path-parse", reason: "SUBMISSION_PATH_INVALID" }),
+    );
+  });
+});
+
+describe("review prompt", () => {
+  it("contains only the submission identity, language, source, and schema v2 instructions", () => {
+    const prompt = buildReviewPrompt({
+      path: reviewPath,
+      language: "java",
+      source: "class Solution {}",
+    });
+
+    expect(prompt).toContain(reviewPath);
+    expect(prompt).toContain("language: java");
+    expect(prompt).toContain("class Solution {}");
+    expect(prompt).toContain('"schema_version": 2');
+    expect(prompt).toContain("without Markdown or extra keys");
+    expect(prompt).toContain("cannot be inferred");
+    for (const forbidden of ["problem statement", "judge metadata", "official template", "leetcode_id", "title_slug"]) {
+      expect(prompt.toLowerCase()).not.toContain(forbidden);
+    }
+  });
+});
+
+describe("review result parsing", () => {
   it.each([
-    ["invalid JSON", () => "not json", "model-response", "MODEL_RESPONSE_INVALID"],
-    ["extra top-level key", () => JSON.stringify({ ...passResult, unexpected: true }), "model-response", "MODEL_RESPONSE_INVALID"],
-    ["wrong schema version", () => JSON.stringify({ ...passResult, schema_version: 2 }), "model-response", "MODEL_RESPONSE_INVALID"],
-    ["mismatched path", () => JSON.stringify({ ...passResult, path: "submissions/ada/top-interview-easy/1/Solution.py" }), "result-validation", "REVIEW_RESULT_INVALID"],
-    ["PASS with failed correctness", () => JSON.stringify({ ...passResult, correctness: { ...passResult.correctness, status: "FAIL" } }), "result-validation", "REVIEW_RESULT_INVALID"],
-    ["PASS with findings", () => JSON.stringify({ ...passResult, blocking_findings: [clone(failResult.blocking_findings[0])] }), "result-validation", "REVIEW_RESULT_INVALID"],
-    ["PASS with unacceptable complexity", () => JSON.stringify({ ...passResult, complexity: { ...passResult.complexity, acceptable: false } }), "result-validation", "REVIEW_RESULT_INVALID"],
-    ["FAIL without findings", () => JSON.stringify({ ...failResult, blocking_findings: [] }), "result-validation", "REVIEW_RESULT_INVALID"],
-    ["unknown blocking category", () => JSON.stringify({ ...failResult, blocking_findings: [{ ...failResult.blocking_findings[0], category: "security" }] }), "model-response", "MODEL_RESPONSE_INVALID"],
-    ["unknown suggestion category", () => JSON.stringify({ ...passResult, non_blocking_suggestions: [{ category: "security", suggestion: "Do this." }] }), "model-response", "MODEL_RESPONSE_INVALID"],
-    ["empty required text", () => JSON.stringify({ ...passResult, summary: " " }), "model-response", "MODEL_RESPONSE_INVALID"],
-    ["incomplete applicable counterexample", () => JSON.stringify({ ...failResult, blocking_findings: [{ ...failResult.blocking_findings[0], counterexample: { input: "[3,3], 6", expected: "[0,1]", actual: null } }] }), "model-response", "MODEL_RESPONSE_INVALID"],
+    ["No issue found", noIssueResult],
+    ["Possible issue", possibleIssueResult],
+    ["Improvement", improvementResult],
+  ])("accepts and deeply freezes a valid %s result", (_overall, fixture) => {
+    const parsed = parseReviewResult(JSON.stringify(fixture), reviewPath);
+
+    expect(parsed).toEqual(fixture);
+    expect(Object.keys(parsed)).toEqual(resultKeys);
+    expect(Object.isFrozen(parsed)).toBe(true);
+    expect(Object.isFrozen(parsed.complexity)).toBe(true);
+    expect(Object.isFrozen(parsed.bug_risks)).toBe(true);
+    expect(Object.isFrozen(parsed.readability)).toBe(true);
+  });
+
+  it.each(["index-range", "overflow", "nullability", "edge-case", "condition"])(
+    "accepts the %s bug risk category",
+    (category) => {
+      const result = clone(possibleIssueResult);
+      result.bug_risks[0].category = category;
+      expect(parseReviewResult(JSON.stringify(result), reviewPath)).toEqual(result);
+    },
+  );
+
+  it.each(["naming", "function-split", "duplication", "magic-number"])(
+    "accepts the %s readability category",
+    (category) => {
+      const result = clone(improvementResult);
+      result.readability[0].category = category;
+      expect(parseReviewResult(JSON.stringify(result), reviewPath)).toEqual(result);
+    },
+  );
+
+  it.each([
+    ["invalid JSON", "not json", "model-response", "MODEL_RESPONSE_INVALID"],
+    ["an extra top-level key", JSON.stringify({ ...noIssueResult, verdict: "PASS" }), "model-response", "MODEL_RESPONSE_INVALID"],
+    ["a missing top-level key", JSON.stringify(Object.fromEntries(Object.entries(noIssueResult).filter(([key]) => key !== "summary"))), "model-response", "MODEL_RESPONSE_INVALID"],
+    ["schema version 1", JSON.stringify({ ...noIssueResult, schema_version: 1 }), "model-response", "MODEL_RESPONSE_INVALID"],
+    ["a mismatched path", JSON.stringify({ ...noIssueResult, path: "submissions/ada/swea/1206/solution.java" }), "result-validation", "REVIEW_RESULT_INVALID"],
+    ["an unknown overall", JSON.stringify({ ...noIssueResult, overall: "PASS" }), "model-response", "MODEL_RESPONSE_INVALID"],
+    ["an extra bug risk key", JSON.stringify({ ...possibleIssueResult, bug_risks: [{ ...possibleIssueResult.bug_risks[0], evidence: "extra" }] }), "model-response", "MODEL_RESPONSE_INVALID"],
+    ["an unknown bug risk category", JSON.stringify({ ...possibleIssueResult, bug_risks: [{ ...possibleIssueResult.bug_risks[0], category: "compile" }] }), "model-response", "MODEL_RESPONSE_INVALID"],
+    ["an extra complexity key", JSON.stringify({ ...noIssueResult, complexity: { ...noIssueResult.complexity, acceptable: true } }), "model-response", "MODEL_RESPONSE_INVALID"],
+    ["an extra readability key", JSON.stringify({ ...improvementResult, readability: [{ ...improvementResult.readability[0], reason: "extra" }] }), "model-response", "MODEL_RESPONSE_INVALID"],
+    ["an unknown readability category", JSON.stringify({ ...improvementResult, readability: [{ ...improvementResult.readability[0], category: "style" }] }), "model-response", "MODEL_RESPONSE_INVALID"],
+    ["blank required text", JSON.stringify({ ...noIssueResult, summary: " " }), "model-response", "MODEL_RESPONSE_INVALID"],
   ])("rejects %s", (_description, raw, stage, reason) => {
-    expect(() => parseReviewResult(raw(), reviewPath)).toThrowError(
-      expect.objectContaining({
-        name: "ReviewFailure",
-        stage,
-        reason,
-        retryable: false,
-      }),
+    expect(() => parseReviewResult(raw, reviewPath)).toThrowError(
+      expect.objectContaining({ name: "ReviewFailure", stage, reason, retryable: false }),
     );
   });
 
   it.each([
-    ["invalid JSON", () => "not json", "field=response; issue=json-parse"],
-    ["top-level shape", () => JSON.stringify({ ...passResult, unexpected: "model-secret" }), "field=response; issue=object-shape"],
-    ["boolean type", () => JSON.stringify({ ...passResult, complexity: { ...passResult.complexity, acceptable: "yes" } }), "field=complexity.acceptable; issue=boolean"],
-    ["blocking category", () => JSON.stringify({ ...failResult, blocking_findings: [{ ...failResult.blocking_findings[0], category: "model-secret" }] }), "field=blocking_findings[].category; issue=enum"],
-  ])("reports a sanitized diagnostic for %s", (_name, raw, diagnostic) => {
-    try {
-      parseReviewResult(raw(), reviewPath);
-      throw new Error("expected parsing to fail");
-    } catch (error) {
-      expect(error).toBeInstanceOf(ReviewFailure);
-      expect(error.detail).toContain(diagnostic);
-      expect(error.detail).not.toContain("model-secret");
-      const markdown = renderInfrastructureFailure({ headSha: "abc123", failure: error, runUrl: "https://example.test/run" });
-      expect(markdown).toContain(diagnostic);
-      expect(markdown).not.toContain("model-secret");
-    }
+    ["bug risks take priority over readability", { ...clone(possibleIssueResult), overall: "Improvement", readability: clone(improvementResult.readability) }],
+    ["readability requires Improvement", { ...clone(improvementResult), overall: "No issue found" }],
+    ["an empty review requires No issue found", { ...clone(noIssueResult), overall: "Possible issue" }],
+  ])("rejects an overall that violates priority: %s", (_description, result) => {
+    expect(() => parseReviewResult(JSON.stringify(result), reviewPath)).toThrowError(
+      expect.objectContaining({ stage: "result-validation", reason: "REVIEW_RESULT_INVALID" }),
+    );
   });
 
-  it("does not expose model content in failures", () => {
+  it("does not expose model content in validation failures", () => {
     const secret = "model-only-secret";
     try {
-      parseReviewResult(`{${secret}`, reviewPath);
+      parseReviewResult(JSON.stringify({ ...noIssueResult, unexpected: secret }), reviewPath);
+      throw new Error("expected parsing to fail");
     } catch (error) {
       expect(error).toBeInstanceOf(ReviewFailure);
       expect(error.detail).not.toContain(secret);
     }
   });
-
-  it("accepts FAIL for unacceptable complexity when correctness passes", () => {
-    const complexityFailure = {
-      ...clone(passResult),
-      verdict: "FAIL",
-      complexity: { ...passResult.complexity, acceptable: false, reason: "Exceeds the stated constraints." },
-      blocking_findings: [{
-        category: "complexity",
-        reason: "The nested loop is quadratic.",
-        evidence: "Both loops can examine every input item.",
-        counterexample: { input: null, expected: null, actual: null },
-      }],
-    };
-
-    expect(parseReviewResult(JSON.stringify(complexityFailure), reviewPath)).toEqual(complexityFailure);
-  });
-
-  it.each(["compile", "runtime", "termination", "platform-contract"])("accepts %s FAIL findings when correctness fails", (category) => {
-    const result = {
-      ...clone(failResult),
-      blocking_findings: [{
-        ...clone(failResult.blocking_findings[0]),
-        category,
-      }],
-    };
-
-    expect(parseReviewResult(JSON.stringify(result), reviewPath)).toEqual(result);
-  });
-
-  it("rejects a compile FAIL finding when correctness passes", () => {
-    const result = {
-      ...clone(failResult),
-      correctness: { ...failResult.correctness, status: "PASS" },
-      blocking_findings: [{
-        ...clone(failResult.blocking_findings[0]),
-        category: "compile",
-      }],
-    };
-
-    expect(() => parseReviewResult(JSON.stringify(result), reviewPath)).toThrowError(
-      expect.objectContaining({ stage: "result-validation", reason: "REVIEW_RESULT_INVALID" }),
-    );
-  });
-
-  it("rejects mixed compile and complexity findings when correctness passes", () => {
-    const result = {
-      ...clone(failResult),
-      correctness: { ...failResult.correctness, status: "PASS" },
-      complexity: { ...failResult.complexity, acceptable: false },
-      blocking_findings: [
-        { ...clone(failResult.blocking_findings[0]), category: "compile" },
-        {
-          category: "complexity",
-          reason: "The nested loop is quadratic.",
-          evidence: "Both loops can examine every input item.",
-          counterexample: { input: null, expected: null, actual: null },
-        },
-      ],
-    };
-
-    expect(() => parseReviewResult(JSON.stringify(result), reviewPath)).toThrowError(
-      expect.objectContaining({ stage: "result-validation", reason: "REVIEW_RESULT_INVALID" }),
-    );
-  });
-
-  it("accepts mixed compile and complexity findings when correctness fails", () => {
-    const result = {
-      ...clone(failResult),
-      complexity: { ...failResult.complexity, acceptable: false },
-      blocking_findings: [
-        { ...clone(failResult.blocking_findings[0]), category: "compile" },
-        {
-          category: "complexity",
-          reason: "The nested loop is quadratic.",
-          evidence: "Both loops can examine every input item.",
-          counterexample: { input: null, expected: null, actual: null },
-        },
-      ],
-    };
-
-    expect(parseReviewResult(JSON.stringify(result), reviewPath)).toEqual(result);
-  });
-
-  it("rejects a complexity finding when complexity is acceptable", () => {
-    const result = {
-      ...clone(failResult),
-      blocking_findings: [{
-        category: "complexity",
-        reason: "The nested loop is quadratic.",
-        evidence: "Both loops can examine every input item.",
-        counterexample: { input: null, expected: null, actual: null },
-      }],
-    };
-
-    expect(() => parseReviewResult(JSON.stringify(result), reviewPath)).toThrowError(
-      expect.objectContaining({ stage: "result-validation", reason: "REVIEW_RESULT_INVALID" }),
-    );
-  });
 });
 
 describe("review Markdown rendering", () => {
-  it("renders a marked, source-free review summary for PASS and FAIL results", () => {
-    const passWithSuggestion = {
-      ...clone(passResult),
-      non_blocking_suggestions: [{ category: "readability", suggestion: "Use a clearer map variable name." }],
-    };
-    const source = "class Solution { private static final String SECRET_SOURCE = \\\"do not render\\\"; }";
+  it("renders a marked, source-free informational review summary", () => {
     const markdown = renderReviewComment({
       headSha: "abc123",
-      results: [passWithSuggestion, failResult],
+      results: [noIssueResult, possibleIssueResult, improvementResult],
       runUrl: "https://github.com/example/leetdash/actions/runs/42",
     });
 
     expect(markdown.startsWith("<!-- leetdash-opencode-review -->")).toBe(true);
     expect(markdown).toContain("Commit: abc123");
-    expect(markdown).toContain("https://github.com/example/leetdash/actions/runs/42");
-    expect(markdown).toContain(passResult.path);
-    expect(markdown).toContain(failResult.path);
-    expect(markdown).toContain("Verdict: PASS");
-    expect(markdown).toContain("Verdict: FAIL");
+    expect(markdown).toContain("Overall: No issue found");
+    expect(markdown).toContain("Overall: Possible issue");
+    expect(markdown).toContain("Overall: Improvement");
     expect(markdown).toContain("Time: O(n)");
-    expect(markdown).toContain("The current index is accepted as its own complement.");
-    expect(markdown).toContain("Input: [3,3], 6");
-    expect(markdown).toContain("Expected: [0,1]");
-    expect(markdown).toContain("Actual: [0,0]");
-    expect(markdown).toContain("Use a clearer map variable name.");
-    expect(markdown).not.toContain(source);
+    expect(markdown).toContain("line 8");
+    expect(markdown).toContain("final valid array position");
+    expect(markdown).toContain("Name the sentinel value");
+    expect(markdown).not.toContain("class Solution");
   });
 
-  it("renders a sanitized issue #33 infrastructure failure block", () => {
-    const source = "class Solution { private static final String SECRET_SOURCE = \\\"do not render\\\"; }";
-    const failure = new ReviewFailure({
-      stage: "model-request",
-      reason: "MODEL_REQUEST_FAILED",
-      detail: "OpenCode request failed.",
-      retryable: true,
-      httpStatus: 429,
-      requestId: "request-42",
-    });
-    const markdown = renderInfrastructureFailure({
+  it("renders a marked, sanitized informational warning", () => {
+    const markdown = renderReviewWarning({
       headSha: "abc123",
-      failure,
+      failure: new ReviewFailure({
+        stage: "model-request",
+        reason: "MODEL_REQUEST_FAILED",
+        detail: "OpenCode request failed.",
+        retryable: true,
+        httpStatus: 429,
+        requestId: "request-42",
+      }),
       runUrl: "https://github.com/example/leetdash/actions/runs/42",
     });
 
-    expect(markdown).toContain("<!-- leetdash-opencode-review -->\n## OpenCode review infrastructure failure (issue #33)");
-    [
-      "Commit: abc123",
-      "Stage: model-request",
-      "Reason: MODEL_REQUEST_FAILED",
-      "Detail: OpenCode request failed.",
-      "Retryable: yes",
-      "HTTP status: 429",
-      "Request ID: request-42",
-      "https://github.com/example/leetdash/actions/runs/42",
-    ].forEach((value) => expect(markdown).toContain(value));
-    expect(markdown).not.toContain(source);
+    expect(markdown).toContain("<!-- leetdash-opencode-review -->\n## OpenCode review warning");
+    expect(markdown).toContain("Stage: model-request");
+    expect(markdown).toContain("Reason: MODEL_REQUEST_FAILED");
+    expect(markdown).toContain("Detail: OpenCode request failed.");
+    expect(markdown).toContain("Retryable: yes");
+    expect(markdown).toContain("HTTP status: 429");
+    expect(markdown).toContain("Request ID: request-42");
   });
 
-  it("replaces control characters and table separators in rendered values", () => {
-    const markdown = renderReviewComment({
+  it("escapes HTML, control characters, and table separators in dynamic values", () => {
+    const review = renderReviewComment({
       headSha: "abc\n123|def",
-      results: [{ ...clone(passResult), summary: "Fine\nsummary|only." }],
+      results: [{ ...clone(noIssueResult), summary: "Fine & <tag>\nsummary|only." }],
       runUrl: "https://example.test/run\n42|x",
     });
-
-    expect(markdown).toContain("abc 123\\|def");
-    expect(markdown).toContain("Fine summary\\|only.");
-    expect(markdown).toContain("https://example.test/run 42\\|x");
-  });
-
-  it("escapes HTML-significant characters in every dynamic renderer value", () => {
-    const result = {
-      ...clone(failResult),
-      summary: "Summary & <tag>",
-      blocking_findings: [{
-        ...clone(failResult.blocking_findings[0]),
-        evidence: "Evidence & <details>",
-      }],
-      non_blocking_suggestions: [{ category: "style", suggestion: "Suggestion & <improvement>" }],
-    };
-    const review = renderReviewComment({ headSha: "abc123", results: [result], runUrl: "https://example.test/run" });
-    const infrastructure = renderInfrastructureFailure({
+    const warning = renderReviewWarning({
       headSha: "abc123",
       failure: new ReviewFailure({
         stage: "model-request",
@@ -379,68 +236,9 @@ describe("review Markdown rendering", () => {
       runUrl: "https://example.test/run",
     });
 
-    [
-      "Summary &amp; &lt;tag&gt;",
-      "Evidence &amp; &lt;details&gt;",
-      "Suggestion &amp; &lt;improvement&gt;",
-      "Detail &amp; &lt;external&gt;",
-    ].forEach((value) => expect(`${review}\n${infrastructure}`).toContain(value));
-  });
-});
-
-describe("LeetCode question normalization", () => {
-  it.each([
-    ["c", "c"],
-    ["cc", "cpp"],
-    ["cpp", "cpp"],
-    ["cs", "csharp"],
-    ["dart", "dart"],
-    ["go", "golang"],
-    ["java", "java"],
-    ["js", "javascript"],
-    ["kt", "kotlin"],
-    ["php", "php"],
-    ["py", "python3"],
-    ["rb", "ruby"],
-    ["rs", "rust"],
-    ["scala", "scala"],
-    ["sql", "mysql"],
-    ["swift", "swift"],
-    ["ts", "typescript"],
-  ])("maps %s to LeetCode %s", (extension, slug) => {
-    expect(getLeetCodeLangSlug(extension)).toBe(slug);
-  });
-
-  it("normalizes valid live question data for the submission language", () => {
-    expect(normalizeQuestionData(rawQuestion, "java")).toEqual({
-      content: rawQuestion.content,
-      exampleTestcases: rawQuestion.exampleTestcases,
-      metadata: { name: "twoSum", params: [{ name: "nums", type: "integer[]" }] },
-      codeTemplate: rawQuestion.codeSnippets[0].code,
-      topicTags: rawQuestion.topicTags,
-    });
-  });
-
-  it.each([
-    ["an unsupported extension", () => normalizeQuestionData(rawQuestion, "zig"), "제출 언어를 LeetCode 공식 template에 매핑하지 못했습니다."],
-    ["missing content", () => normalizeQuestionData({ ...rawQuestion, content: "" }, "java"), "LeetCode 문제 본문이 비어 있습니다."],
-    ["blank examples", () => normalizeQuestionData({ ...rawQuestion, exampleTestcases: "  " }, "java"), "LeetCode 예제 테스트 케이스가 비어 있습니다."],
-    ["invalid metadata", () => normalizeQuestionData({ ...rawQuestion, metaData: "[]" }, "java"), "LeetCode judge metadata가 유효하지 않습니다."],
-    ["missing matching snippet", () => normalizeQuestionData({ ...rawQuestion, codeSnippets: [] }, "java"), "제출 언어의 LeetCode 공식 코드 template을 찾지 못했습니다."],
-  ])("fails safely for %s", (_description, normalize, detail) => {
-    expect(normalize).toThrowError(
-      expect.objectContaining({ stage: "problem-parse", reason: "PROBLEM_DATA_INVALID", detail, retryable: false }),
-    );
-  });
-
-  it("fails safely for an unsupported language mapping", () => {
-    expect(() => getLeetCodeLangSlug("zig")).toThrowError(
-      expect.objectContaining({
-        stage: "problem-parse",
-        reason: "PROBLEM_DATA_INVALID",
-        detail: "제출 언어를 LeetCode 공식 template에 매핑하지 못했습니다.",
-        retryable: false,
-      }),
-    );
+    expect(review).toContain("abc 123\\|def");
+    expect(review).toContain("Fine &amp; &lt;tag&gt; summary\\|only.");
+    expect(review).toContain("https://example.test/run 42\\|x");
+    expect(warning).toContain("Detail &amp; &lt;external&gt;");
   });
 });
