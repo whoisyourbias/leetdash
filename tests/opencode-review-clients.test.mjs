@@ -1,91 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { GitHubReviewClient, LeetCodeClient, OpenCodeClient } from "../scripts/opencode-review-clients.mjs";
-
-const rawQuestion = {
-  content: "<p>Find two numbers.</p>",
-  exampleTestcases: "[2,7,11,15]\n9",
-  metaData: JSON.stringify({ name: "twoSum", params: [{ name: "nums", type: "integer[]" }] }),
-  codeSnippets: [{ lang: "Java", langSlug: "java", code: "class Solution { public int[] twoSum(int[] nums, int target) {} }" }],
-  topicTags: [{ name: "Array", slug: "array" }],
-};
+import { GitHubReviewClient, OpenCodeClient } from "../scripts/opencode-review-clients.mjs";
 
 function jsonResponse(body, { status = 200, headers = {} } = {}) {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...headers } });
 }
-
-describe("LeetCodeClient", () => {
-  it("deduplicates concurrent slug requests without writing a permanent cache", async () => {
-    const requests = [];
-    const fetchImpl = async (url, init) => {
-      requests.push({ url: String(url), init });
-      return jsonResponse({ data: { question: rawQuestion } });
-    };
-    const client = new LeetCodeClient({ fetchImpl });
-
-    const [first, second] = await Promise.all([client.getQuestion("two-sum"), client.getQuestion("two-sum")]);
-
-    expect(first).toEqual(rawQuestion);
-    expect(second).toEqual(rawQuestion);
-    expect(requests).toHaveLength(1);
-    expect(requests[0].url).toBe("https://leetcode.com/graphql");
-    const request = JSON.parse(requests[0].init.body);
-    expect(request.query).toContain("question(titleSlug: $titleSlug)");
-    ["questionFrontendId", "title", "titleSlug", "difficulty", "content", "exampleTestcases", "metaData", "codeSnippets", "topicTags"].forEach((field) => {
-      expect(request.query).toContain(field);
-    });
-    expect(request.variables).toEqual({ titleSlug: "two-sum" });
-  });
-
-  it("returns a redacted retryable failure for LeetCode HTTP errors", async () => {
-    const secret = "Authorization: Bearer leetcode-secret";
-    const client = new LeetCodeClient({
-      fetchImpl: async () => jsonResponse({ message: secret }, { status: 503, headers: { "x-request-id": "lc-request-1" } }),
-    });
-
-    await expect(client.getQuestion("two-sum")).rejects.toMatchObject({
-      stage: "problem-fetch",
-      reason: "PROBLEM_FETCH_FAILED",
-      retryable: true,
-      httpStatus: 503,
-      requestId: "lc-request-1",
-    });
-    await client.getQuestion("another-slug").catch((failure) => {
-      expect(failure.detail).not.toContain(secret);
-      expect(failure.detail).not.toContain("message");
-    });
-  });
-
-  it("aborts a stalled LeetCode request after the bounded timeout without leaking the fetch error", async () => {
-    vi.useFakeTimers();
-    const rawError = "raw-leetcode-timeout-sentinel";
-    let requestSignal;
-    try {
-      const client = new LeetCodeClient({
-        fetchImpl: async (_url, init) => new Promise((_resolve, reject) => {
-          requestSignal = init.signal;
-          init.signal.addEventListener("abort", () => reject(new Error(rawError)), { once: true });
-        }),
-      });
-      const failurePromise = client.getQuestion("two-sum").catch((failure) => failure);
-
-      await vi.advanceTimersByTimeAsync(60_000);
-      const failure = await failurePromise;
-
-      expect(requestSignal).toBeInstanceOf(AbortSignal);
-      expect(requestSignal.aborted).toBe(true);
-      expect(failure).toMatchObject({
-        stage: "problem-fetch",
-        reason: "PROBLEM_FETCH_FAILED",
-        detail: "LeetCode request failed.",
-      });
-      expect(failure.detail).not.toContain(rawError);
-      expect(vi.getTimerCount()).toBe(0);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-});
 
 describe("OpenCodeClient", () => {
   it("sends the provider-stripped model request and returns only assistant content", async () => {

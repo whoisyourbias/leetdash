@@ -5,13 +5,12 @@ import { fileURLToPath } from "node:url";
 import {
   ReviewFailure,
   buildReviewPrompt,
-  normalizeQuestionData,
   parseReviewResult,
-  renderInfrastructureFailure,
-  resolveCatalogProblem,
+  parseSubmissionSolutionPath,
   renderReviewComment,
+  renderReviewWarning,
 } from "./opencode-review-core.mjs";
-import { GitHubReviewClient, LeetCodeClient, OpenCodeClient } from "./opencode-review-clients.mjs";
+import { GitHubReviewClient, OpenCodeClient } from "./opencode-review-clients.mjs";
 import {
   hasCompletePullRequestFileList,
   isParticipantSubmissionPath,
@@ -25,8 +24,8 @@ const embeddedSourceRedactionMinimumLength = 16;
 
 const safeFailures = Object.freeze({
   "catalog-resolve": ["CATALOG_MAPPING_FAILED", "Submission review paths could not be resolved."],
-  "problem-fetch": ["PROBLEM_FETCH_FAILED", "LeetCode question request failed."],
-  "problem-parse": ["PROBLEM_DATA_INVALID", "LeetCode question data is invalid."],
+  "path-parse": ["SUBMISSION_PATH_INVALID", "The submission solution path could not be parsed."],
+  "source-read": ["SOURCE_READ_FAILED", "Submission source is unavailable."],
   "model-request": ["MODEL_REQUEST_FAILED", "OpenCode review request failed."],
   "model-response": ["MODEL_RESPONSE_INVALID", "OpenCode review response is invalid."],
   "result-validation": ["REVIEW_RESULT_INVALID", "OpenCode review result is invalid."],
@@ -49,8 +48,8 @@ function failureForStage(stage) {
 
 function sourceReadFailure() {
   return new ReviewFailure({
-    stage: "catalog-resolve",
-    reason: "CATALOG_MAPPING_FAILED",
+    stage: "source-read",
+    reason: "SOURCE_READ_FAILED",
     detail: "Submission source is unavailable.",
   });
 }
@@ -200,40 +199,29 @@ function redactReviewResult(result, source) {
   return {
     ...result,
     summary: redactModelText(result.summary, source),
-    correctness: {
-      ...result.correctness,
-      reason: redactModelText(result.correctness.reason, source),
-    },
+    bug_risks: result.bug_risks.map((risk) => ({
+      ...risk,
+      location: redactModelText(risk.location, source),
+      reason: redactModelText(risk.reason, source),
+      trigger: redactModelText(risk.trigger, source),
+    })),
     complexity: {
       ...result.complexity,
       time: redactModelText(result.complexity.time, source),
       space: redactModelText(result.complexity.space, source),
-      reason: redactModelText(result.complexity.reason, source),
     },
-    blocking_findings: result.blocking_findings.map((finding) => ({
-      ...finding,
-      reason: redactModelText(finding.reason, source),
-      evidence: redactModelText(finding.evidence, source),
-      counterexample: {
-        input: redactModelText(finding.counterexample.input, source),
-        expected: redactModelText(finding.counterexample.expected, source),
-        actual: redactModelText(finding.counterexample.actual, source),
-      },
-    })),
-    non_blocking_suggestions: result.non_blocking_suggestions.map((suggestion) => ({
-      ...suggestion,
-      suggestion: redactModelText(suggestion.suggestion, source),
+    readability: result.readability.map((item) => ({
+      ...item,
+      location: redactModelText(item.location, source),
+      suggestion: redactModelText(item.suggestion, source),
     })),
   };
 }
 
 async function reviewPullRequest({
   githubClient,
-  leetcodeClient,
   openCodeClient,
   readFile: readSource = defaultSourceReader,
-  catalog,
-  loadCatalog = defaultCatalogLoader,
   changedFiles,
   loadChangedFiles = async () => [],
   loadReviewScope,
@@ -250,8 +238,6 @@ async function reviewPullRequest({
     title: "OpenCode review started",
     summary: "Submission review is running.",
   });
-  const questions = new Map();
-  const reviewedResults = [];
   const results = [];
   let stage = "catalog-resolve";
   let failure;
@@ -299,32 +285,24 @@ async function reviewPullRequest({
       if (paths.length === 0) {
         markdown = noSolutionsMarkdown({ headSha, runUrl });
       } else {
-        stage = "catalog-resolve";
-        const activeCatalog = catalog ?? await loadCatalog();
         for (const file of paths) {
-          stage = "catalog-resolve";
-          const resolved = resolveCatalogProblem(file.path, activeCatalog);
-          const source = await readSource(resolved.path);
-          stage = "problem-fetch";
-          if (!questions.has(resolved.slug)) questions.set(resolved.slug, leetcodeClient.getQuestion(resolved.slug));
-          const rawQuestion = await questions.get(resolved.slug);
-          stage = "problem-parse";
-          const question = normalizeQuestionData(rawQuestion, resolved.extension);
-          const prompt = buildReviewPrompt({ resolved, question, source });
+          stage = "path-parse";
+          const parsed = parseSubmissionSolutionPath(file.path);
+          stage = "source-read";
+          const source = await readSource(parsed.path);
+          const prompt = buildReviewPrompt({ path: parsed.path, language: parsed.extension, source });
           stage = "model-request";
           const raw = await openCodeClient.review({ model, apiKey, prompt });
           stage = "model-response";
-          reviewedResults.push({ result: parseReviewResult(raw, resolved.path), source });
+          results.push(redactReviewResult(parseReviewResult(raw, parsed.path), source));
         }
-        results.push(...reviewedResults.map(({ result, source }) => redactReviewResult(result, source)));
-        conclusion = results.every((result) => result.verdict === "PASS") ? "success" : "failure";
         markdown = renderReviewComment({ headSha, results, runUrl });
       }
     }
   } catch (error) {
     failure = error instanceof ReviewFailure ? error : failureForStage(stage);
-    conclusion = "failure";
-    markdown = renderInfrastructureFailure({ headSha, failure, runUrl });
+    conclusion = "success";
+    markdown = renderReviewWarning({ headSha, failure, runUrl });
   }
 
   let summary = markdown;
@@ -419,15 +397,12 @@ async function main(options = {}) {
   };
   const result = await reviewPullRequest({
     githubClient,
-    leetcodeClient: options.leetcodeClient ?? new LeetCodeClient(),
     openCodeClient: options.openCodeClient ?? new OpenCodeClient(),
     readFile: options.readFile ?? ((filePath) => githubClient.getFileContent({
       path: filePath,
       ref: args.head,
       repository: trustedHeadRepository,
     })),
-    catalog: options.catalog,
-    loadCatalog,
     loadReviewScope,
     headSha: args.head,
     pullNumber: Number(args.pullNumber),

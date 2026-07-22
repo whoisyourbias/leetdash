@@ -6,7 +6,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 const { defaultSourceReader, loadTrustedPullRequestScope, main, reviewPullRequest } = await import("../scripts/opencode-review.mjs");
-const { GitHubDeliveryFailure, LeetCodeClient, OpenCodeClient } = await import("../scripts/opencode-review-clients.mjs");
+const { GitHubDeliveryFailure, OpenCodeClient } = await import("../scripts/opencode-review-clients.mjs");
 const { ReviewFailure } = await import("../scripts/opencode-review-core.mjs");
 const { isSubmissionArtifactName } = await import("../scripts/validate-submission-pr.mjs");
 const execFileAsync = promisify(execFile);
@@ -22,41 +22,32 @@ const catalog = {
 const users = {
   users: [{ id: "ada", displayName: "Ada Lovelace", githubUsername: "ada" }],
 };
-const question = {
-  content: "Find two numbers.",
-  exampleTestcases: "[2,7,11,15]\n9",
-  metaData: JSON.stringify({ name: "twoSum" }),
-  codeSnippets: [{ langSlug: "java", code: "class Solution {}" }],
-  topicTags: [],
-};
 function passResult(path) {
   return JSON.stringify({
-    schema_version: 1,
-    verdict: "PASS",
+    schema_version: 2,
     path,
-    summary: "Correct.",
-    correctness: { status: "PASS", reason: "Matches the contract." },
-    complexity: { time: "O(n)", space: "O(n)", acceptable: true, reason: "Within limits." },
-    blocking_findings: [],
-    non_blocking_suggestions: [],
+    overall: "No issue found",
+    summary: "No visible risk found.",
+    bug_risks: [],
+    complexity: { time: "O(n)", space: "O(n)" },
+    readability: [],
   });
 }
 
 function failResult(path) {
   return JSON.stringify({
-    schema_version: 1,
-    verdict: "FAIL",
+    schema_version: 2,
     path,
-    summary: "The duplicate is returned twice.",
-    correctness: { status: "FAIL", reason: "The same index is reused." },
-    complexity: { time: "O(n)", space: "O(n)", acceptable: true, reason: "Within limits." },
-    blocking_findings: [{
-      category: "correctness",
-      reason: "Returns one index twice.",
-      evidence: "The second lookup accepts the current element.",
-      counterexample: { input: "[3,3]\n6", expected: "[0,1]", actual: "[0,0]" },
+    overall: "Possible issue",
+    summary: "A visible boundary may need attention.",
+    bug_risks: [{
+      category: "index-range",
+      location: "line 4",
+      reason: "The code reads the next element without a local bounds check.",
+      trigger: "The loop reaches the final element.",
     }],
-    non_blocking_suggestions: [],
+    complexity: { time: "O(n)", space: "O(n)" },
+    readability: [],
   });
 }
 
@@ -72,7 +63,6 @@ function reviewOptions(overrides = {}) {
         completeCheck: async (value) => { completed.push(value); },
         upsertReviewComment: async (value) => { comments.push(value); },
       },
-      leetcodeClient: { getQuestion: async () => question },
       openCodeClient: { review: async () => passResult(firstPath) },
       readFile: async () => "class Solution {}",
       catalog,
@@ -89,11 +79,10 @@ function reviewOptions(overrides = {}) {
 }
 
 describe("reviewPullRequest", () => {
-  it("reviews each changed solution while sharing the LeetCode request for its slug", async () => {
+  it("reviews each changed solution using only its path, language, and source", async () => {
     const checks = [];
     const completed = [];
     const comments = [];
-    const requestedSlugs = [];
     const reviews = [];
     const sources = new Map([[firstPath, "class Solution { int first; }"], [secondPath, "class Solution { int second; }"]]);
 
@@ -103,7 +92,6 @@ describe("reviewPullRequest", () => {
         completeCheck: async (value) => { completed.push(value); },
         upsertReviewComment: async (value) => { comments.push(value); },
       },
-      leetcodeClient: { getQuestion: async (slug) => { requestedSlugs.push(slug); return question; } },
       openCodeClient: { review: async (value) => { reviews.push(value); return passResult(value.prompt.includes(firstPath) ? firstPath : secondPath); } },
       readFile: async (filePath) => sources.get(filePath),
       catalog,
@@ -118,8 +106,8 @@ describe("reviewPullRequest", () => {
 
     expect(checks).toHaveLength(1);
     expect(checks[0].headSha).toBe("head-sha-123");
-    expect(requestedSlugs).toEqual(["two-sum"]);
     expect(reviews).toHaveLength(2);
+    expect(reviews[0]).toMatchObject({ model: "opencode-go/kimi-k2.7-code", apiKey: "test-api-key" });
     expect(reviews.map(({ prompt }) => prompt.includes("class Solution { int first; }"))).toEqual([true, false]);
     expect(reviews.map(({ prompt }) => prompt.includes("class Solution { int second; }"))).toEqual([false, true]);
     expect(comments).toHaveLength(1);
@@ -127,35 +115,35 @@ describe("reviewPullRequest", () => {
     expect(completed).toHaveLength(1);
     expect(completed[0].conclusion).toBe("success");
     expect(result.results).toHaveLength(2);
-    expect(result.results.map(({ verdict }) => verdict)).toEqual(["PASS", "PASS"]);
+    expect(result.results.map(({ overall }) => overall)).toEqual(["No issue found", "No issue found"]);
   });
 
-  it("fails the check and comment with a model blocking counterexample", async () => {
+  it("keeps a possible code risk informational", async () => {
     const { options, completed, comments } = reviewOptions({
       openCodeClient: { review: async () => failResult(firstPath) },
     });
 
     const result = await reviewPullRequest(options);
 
-    expect(result.conclusion).toBe("failure");
-    expect(completed[0].conclusion).toBe("failure");
-    expect(comments[0].body).toContain("Input: [3,3]");
-    expect(comments[0].body).toContain("Expected: [0,1]");
-    expect(comments[0].body).toContain("Actual: [0,0]");
+    expect(result.conclusion).toBe("success");
+    expect(completed[0].conclusion).toBe("success");
+    expect(comments[0].body).toContain("Possible bug risks:");
+    expect(comments[0].body).toContain("The loop reaches the final element.");
   });
 
-  it("renders a sanitized infrastructure failure and completes the check", async () => {
+  it("renders a sanitized warning for a model failure and completes the check successfully", async () => {
+    const rawSecret = "provider-response-secret";
     const { options, completed, comments } = reviewOptions({
-      leetcodeClient: { getQuestion: async () => { throw new ReviewFailure({ stage: "problem-fetch", reason: "PROBLEM_FETCH_FAILED", detail: "LeetCode request failed.", retryable: true, httpStatus: 503 }); } },
+      openCodeClient: { review: async () => { throw new Error(rawSecret); } },
     });
 
     const result = await reviewPullRequest(options);
 
-    expect(result.conclusion).toBe("failure");
-    expect(completed[0].conclusion).toBe("failure");
-    expect(comments[0].body).toContain("## OpenCode review infrastructure failure (issue #33)");
-    expect(comments[0].body).toContain("Stage: problem-fetch");
-    expect(comments[0].body).toContain("HTTP status: 503");
+    expect(result.conclusion).toBe("success");
+    expect(completed[0].conclusion).toBe("success");
+    expect(comments[0].body).toContain("## OpenCode review warning");
+    expect(comments[0].body).toContain("Stage: model-request");
+    expect(comments[0].body).not.toContain(rawSecret);
   });
 
   it("turns invalid model JSON into a sanitized model-response failure", async () => {
@@ -186,7 +174,7 @@ describe("reviewPullRequest", () => {
   });
 
   it.each([
-    ["PASS", "Verdict: PASS"],
+    ["No issue found", "Overall: No issue found"],
     ["<!-- leetdash-opencode-review -->", "<!-- leetdash-opencode-review -->"],
   ])("preserves trusted review framing when submitted source equals %s", async (source, requiredValue) => {
     const { options, comments, completed } = reviewOptions({
@@ -241,16 +229,15 @@ describe("reviewPullRequest", () => {
       apiKey: "secret-api-key",
       authorization: "Bearer secret-token",
       modelBody: "raw-model-body",
-      graphqlBody: "raw-graphql-body",
       source: "submitted-source-sentinel",
     };
     const headers = [];
     const logSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const captured = [];
 
-    const capture = async ({ apiKey, source = "class Solution {}", leetcodeClient, openCodeClient }) => {
+    const capture = async ({ apiKey, source = "class Solution {}", openCodeClient }) => {
       const summaryPath = path.join(await mkdtemp(path.join(tmpdir(), "opencode-review-")), "summary.md");
-      const { options, comments } = reviewOptions({ apiKey, summaryPath, readFile: async () => source, leetcodeClient, openCodeClient });
+      const { options, comments } = reviewOptions({ apiKey, summaryPath, readFile: async () => source, openCodeClient });
       const checks = [];
       options.githubClient.createCheck = async (value) => { checks.push(value); return { id: 17 }; };
       options.githubClient.completeCheck = async (value) => { checks.push(value); };
@@ -261,15 +248,10 @@ describe("reviewPullRequest", () => {
         await readFile(summaryPath, "utf8"),
       );
     };
-    const successfulQuestionClient = () => new LeetCodeClient({
-      fetchImpl: async () => ({ ok: true, status: 200, headers: { get: () => null }, json: async () => ({ data: { question } }) }),
-    });
-
     try {
       await capture({
         apiKey: sentinels.apiKey,
         source: sentinels.source,
-        leetcodeClient: successfulQuestionClient(),
         openCodeClient: new OpenCodeClient({
           fetchImpl: async (_url, request) => {
             headers.push(request.headers.Authorization);
@@ -279,7 +261,6 @@ describe("reviewPullRequest", () => {
       });
       await capture({
         apiKey: "secret-token",
-        leetcodeClient: successfulQuestionClient(),
         openCodeClient: new OpenCodeClient({
           fetchImpl: async (_url, request) => {
             headers.push(request.headers.Authorization);
@@ -287,14 +268,6 @@ describe("reviewPullRequest", () => {
           },
         }),
       });
-      await capture({
-        apiKey: sentinels.apiKey,
-        leetcodeClient: new LeetCodeClient({
-          fetchImpl: async () => ({ ok: true, status: 200, headers: { get: () => null }, json: async () => ({ errors: [{ message: sentinels.graphqlBody }] }) }),
-        }),
-        openCodeClient: { review: async () => { throw new Error("must not run"); } },
-      });
-
       const output = [...logSpy.mock.calls.flat(), ...captured].join("\n");
       expect(headers).toEqual([`Bearer ${sentinels.apiKey}`, sentinels.authorization]);
       Object.values(sentinels).forEach((sentinel) => expect(output).not.toContain(sentinel));
@@ -311,18 +284,18 @@ describe("reviewPullRequest", () => {
     const result = await reviewPullRequest(options);
 
     expect(result.failure).toMatchObject({ stage: "result-validation", reason: "REVIEW_RESULT_INVALID" });
-    expect(completed[0].conclusion).toBe("failure");
+    expect(completed[0].conclusion).toBe("success");
   });
 
   it("updates a prior managed failure body with a later passing review", async () => {
     const { options } = reviewOptions();
-    let storedBody = "<!-- leetdash-opencode-review -->\\n## OpenCode review infrastructure failure (issue #33)";
+    let storedBody = "<!-- leetdash-opencode-review -->\\n## OpenCode review warning";
     options.githubClient.upsertReviewComment = async ({ body }) => { storedBody = body; };
 
     await reviewPullRequest(options);
 
-    expect(storedBody).toContain("Verdict: PASS");
-    expect(storedBody).not.toContain("infrastructure failure");
+    expect(storedBody).toContain("Overall: No issue found");
+    expect(storedBody).not.toContain("review warning");
   });
 
   it("preserves a passing verdict when comment delivery fails", async () => {
@@ -340,7 +313,6 @@ describe("reviewPullRequest", () => {
   it("emits a successful not-applicable check without review service or comment calls", async () => {
     const { options, completed } = reviewOptions({ submissionOnly: false });
     let requests = 0;
-    options.leetcodeClient.getQuestion = async () => { requests += 1; };
     options.openCodeClient.review = async () => { requests += 1; };
     options.githubClient.upsertReviewComment = async () => { requests += 1; };
 
@@ -369,23 +341,32 @@ describe("reviewPullRequest", () => {
     const result = await reviewPullRequest(options);
 
     expect(result.failure).toMatchObject({ stage: "catalog-resolve", reason: "CATALOG_MAPPING_FAILED" });
-    expect(completed[0].conclusion).toBe("failure");
+    expect(completed[0].conclusion).toBe("success");
   });
 
-  it("creates a check before lazily loading a malformed catalog and completes the failure", async () => {
-    const calls = [];
-    const { options, completed } = reviewOptions({
-      catalog: undefined,
-      loadCatalog: async () => { calls.push("catalog"); throw new SyntaxError("raw catalog contents"); },
+  it("renders a path-parse failure safely and completes the check successfully", async () => {
+    const unsafePath = "unexpected/<script>/solution.java";
+    const { options, completed, comments } = reviewOptions({
+      changedFiles: [{ status: "A", path: unsafePath }],
     });
-    options.githubClient.createCheck = async () => { calls.push("check"); return { id: 17 }; };
 
     const result = await reviewPullRequest(options);
 
-    expect(calls).toEqual(["check", "catalog"]);
-    expect(result.failure).toMatchObject({ stage: "catalog-resolve", reason: "CATALOG_MAPPING_FAILED" });
-    expect(completed[0].conclusion).toBe("failure");
-    expect(completed[0].summary).not.toContain("raw catalog contents");
+    expect(result.failure).toMatchObject({ stage: "path-parse", reason: "SUBMISSION_PATH_INVALID" });
+    expect(result.conclusion).toBe("success");
+    expect(completed[0].conclusion).toBe("success");
+    expect(comments[0].body).toContain("## OpenCode review warning");
+    expect(comments[0].body).not.toContain("<script>");
+  });
+
+  it("does not swallow check creation or completion delivery failures", async () => {
+    const creation = reviewOptions();
+    creation.options.githubClient.createCheck = async () => { throw new Error("create failed"); };
+    await expect(reviewPullRequest(creation.options)).rejects.toThrow("create failed");
+
+    const completion = reviewOptions();
+    completion.options.githubClient.completeCheck = async () => { throw new Error("complete failed"); };
+    await expect(reviewPullRequest(completion.options)).rejects.toThrow("complete failed");
   });
 
   it("does not discover changed files for a not-applicable review", async () => {
@@ -510,7 +491,7 @@ describe("defaultSourceReader", () => {
       checkoutRoot: "C:\\checkout",
       lstat: async () => makeStats(),
       readFile: async () => { reads += 1; return "source"; },
-    })).rejects.toMatchObject({ stage: "catalog-resolve", reason: "CATALOG_MAPPING_FAILED" });
+    })).rejects.toMatchObject({ stage: "source-read", reason: "SOURCE_READ_FAILED" });
 
     expect(reads).toBe(0);
   });
@@ -523,7 +504,7 @@ describe("defaultSourceReader", () => {
       checkoutRoot: "C:\\checkout",
       lstat: async () => { stats += 1; return { isSymbolicLink: () => false, isFile: () => true }; },
       readFile: async () => { reads += 1; return "source"; },
-    })).rejects.toMatchObject({ stage: "catalog-resolve", reason: "CATALOG_MAPPING_FAILED" });
+    })).rejects.toMatchObject({ stage: "source-read", reason: "SOURCE_READ_FAILED" });
 
     expect(stats).toBe(0);
     expect(reads).toBe(0);
@@ -593,7 +574,6 @@ describe("opencode-review CLI", () => {
         OPENCODE_REVIEW_MODEL: "opencode-go/kimi-k2.7-code",
       },
       githubClient,
-      leetcodeClient: { getQuestion: async () => question },
       openCodeClient: { review: async ({ prompt }) => { prompts.push(prompt); return passResult(firstPath); } },
       catalog,
       users,
@@ -627,7 +607,6 @@ describe("opencode-review CLI", () => {
         GITHUB_RUN_ID: "9",
       },
       githubClient,
-      leetcodeClient: { getQuestion: async () => { reviewCalls += 1; } },
       openCodeClient: { review: async () => { reviewCalls += 1; } },
       catalog,
       users,
@@ -638,7 +617,7 @@ describe("opencode-review CLI", () => {
     expect(reviewCalls).toBe(0);
   });
 
-  it("fails closed with a completed check when a submission review lacks OpenCode configuration", async () => {
+  it("completes a warning check successfully when a submission review lacks OpenCode configuration", async () => {
     const completed = [];
     const githubClient = {
       createCheck: async () => ({ id: 17 }),
@@ -658,14 +637,13 @@ describe("opencode-review CLI", () => {
         GITHUB_RUN_ID: "9",
       },
       githubClient,
-      leetcodeClient: { getQuestion: async () => { throw new Error("must not run"); } },
       openCodeClient: { review: async () => { throw new Error("must not run"); } },
       catalog,
       users,
     });
 
-    expect(outcome.exitCode).toBe(1);
-    expect(completed[0]).toMatchObject({ conclusion: "failure" });
+    expect(outcome.exitCode).toBe(0);
+    expect(completed[0]).toMatchObject({ conclusion: "success" });
     expect(completed[0].summary).toContain("MODEL_REQUEST_FAILED");
   });
 
@@ -682,9 +660,9 @@ describe("opencode-review CLI", () => {
   });
 
   it.each([
-    ["code failure", { review: async () => failResult(firstPath) }],
-    ["infrastructure failure", { review: async () => { throw new ReviewFailure({ stage: "model-request", reason: "MODEL_REQUEST_FAILED", detail: "safe" }); } }],
-  ])("returns nonzero after completing a %s check", async (_name, openCodeClient) => {
+    ["possible code risk", { review: async () => failResult(firstPath) }],
+    ["handled model failure", { review: async () => { throw new ReviewFailure({ stage: "model-request", reason: "MODEL_REQUEST_FAILED", detail: "safe" }); } }],
+  ])("returns zero after completing an informational %s check", async (_name, openCodeClient) => {
     const { options, completed } = reviewOptions();
 
     const outcome = await main({
@@ -699,17 +677,16 @@ describe("opencode-review CLI", () => {
       },
       loadReviewScope: async () => ({ submissionOnly: true, changedFiles: [{ status: "A", path: firstPath }] }),
       githubClient: options.githubClient,
-      leetcodeClient: options.leetcodeClient,
       openCodeClient,
       catalog,
       readFile: options.readFile,
     });
 
-    expect(outcome.exitCode).toBe(1);
-    expect(completed[0].conclusion).toBe("failure");
+    expect(outcome.exitCode).toBe(0);
+    expect(completed[0].conclusion).toBe("success");
   });
 
-  it("exits nonzero after safely completing a changed-file discovery failure", async () => {
+  it("exits zero after safely completing a changed-file discovery warning", async () => {
     const { options, completed } = reviewOptions();
     const calls = [];
     const rawFailure = "changed-files-secret";
@@ -727,14 +704,13 @@ describe("opencode-review CLI", () => {
       },
       loadReviewScope: async () => { calls.push("changed-files"); throw new Error(rawFailure); },
       githubClient: options.githubClient,
-      leetcodeClient: options.leetcodeClient,
       openCodeClient: options.openCodeClient,
       catalog,
     });
 
     expect(calls).toEqual(["check", "changed-files"]);
-    expect(outcome.exitCode).toBe(1);
-    expect(completed[0].conclusion).toBe("failure");
+    expect(outcome.exitCode).toBe(0);
+    expect(completed[0].conclusion).toBe("success");
     expect(completed[0].summary).toContain("변경된 제출 파일 목록을 가져오지 못했습니다.");
     expect(completed[0].summary).not.toContain(rawFailure);
   });
