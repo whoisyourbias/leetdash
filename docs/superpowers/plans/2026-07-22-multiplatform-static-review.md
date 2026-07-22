@@ -351,12 +351,14 @@ npm run typecheck
 npm run catalog:build
 git diff --exit-code -- data/problem-catalog.json
 npm run progress:build
-git diff --exit-code -- data/progress.json
+jq 'walk(if type == "object" then del(.generatedAt) else . end)' data/progress.json > /tmp/progress-actual.json
+git show HEAD:data/progress.json | jq 'walk(if type == "object" then del(.generatedAt) else . end)' > /tmp/progress-expected.json
+diff -u /tmp/progress-expected.json /tmp/progress-actual.json
 npm run build
 git diff --check
 ```
 
-Expected: all commands exit 0.
+Expected: all commands exit 0. `data/progress.json` timestamps may change during generation; restore the committed generated file after the normalized comparison so verification leaves a clean worktree.
 
 - [ ] **Step 3: Configure branch protection**
 
