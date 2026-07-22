@@ -4,7 +4,8 @@ const solutionPathPattern = /^submissions\/([^/]+)\/([^/]+)\/([^/]+)\/solution\.
 const maxManagedCommentLength = 60_000;
 const truncationNotice = "\n\n> _Review truncated to fit the GitHub comment limit._";
 const reviewSummaryMarker = "<!-- leetdash-opencode-review -->";
-const reviewFileMarkerPattern = /^<!-- leetdash-opencode-review-file:([a-f0-9]{64}) -->(?:\r?\n|$)/;
+const reviewFileMarkerPattern = /^<!-- leetdash-opencode-review-file:([a-f0-9]{64}) -->$/;
+const reviewContentMarkerPattern = /^<!-- leetdash-opencode-review-content:([a-f0-9]{64}) -->$/;
 
 class ReviewFailure extends Error {
   constructor({ stage, reason, detail, retryable = false, httpStatus, requestId }) {
@@ -46,11 +47,29 @@ function reviewFileMarker(path) {
   return `<!-- leetdash-opencode-review-file:${reviewFileKey(path)} -->`;
 }
 
+function reviewContentKey(source) {
+  return createHash("sha256").update(String(source), "utf8").digest("hex");
+}
+
+function reviewContentMarker(contentKey) {
+  if (!/^[a-f0-9]{64}$/.test(contentKey)) throw new TypeError("Invalid review content key.");
+  return `<!-- leetdash-opencode-review-content:${contentKey} -->`;
+}
+
 function parseManagedReviewMarker(body) {
   if (typeof body !== "string") return undefined;
-  if (body === reviewSummaryMarker || body.startsWith(`${reviewSummaryMarker}\n`)) return { kind: "summary" };
-  const match = reviewFileMarkerPattern.exec(body);
-  return match ? { kind: "file", key: match[1] } : undefined;
+  if (body === reviewSummaryMarker || body.startsWith(`${reviewSummaryMarker}\n`) || body.startsWith(`${reviewSummaryMarker}\r\n`)) {
+    return { kind: "summary" };
+  }
+  const [firstLine, secondLine] = body.split(/\r?\n/, 2);
+  const fileMatch = reviewFileMarkerPattern.exec(firstLine);
+  if (!fileMatch) return undefined;
+  const contentMatch = reviewContentMarkerPattern.exec(secondLine ?? "");
+  return {
+    kind: "file",
+    key: fileMatch[1],
+    ...(contentMatch ? { contentKey: contentMatch[1] } : {}),
+  };
 }
 
 function buildReviewPrompt({ path, language, source }) {
@@ -165,9 +184,10 @@ function warningLines(failure) {
   return lines;
 }
 
-function renderReviewFileComment({ path, headSha, runUrl, mascotUrl, markdown }) {
+function renderReviewFileComment({ path, contentKey, headSha, runUrl, mascotUrl, markdown }) {
   return limitComment([
     reviewFileMarker(path),
+    reviewContentMarker(contentKey),
     ...brandedHeader({ mascotUrl, title: "찰싹봇의 코드 리뷰" }),
     `파일: ${markdownText(path)}`,
     `커밋: ${markdownText(headSha)}`,
@@ -193,6 +213,7 @@ function renderReviewSummary({
   runUrl,
   mascotUrl,
   reviewedCount,
+  reusedCount = 0,
   warningCount,
   deliveryFailureCount,
   message,
@@ -203,6 +224,7 @@ function renderReviewSummary({
     `커밋: ${markdownText(headSha)}`,
     ...(message ? [markdownText(message)] : [
       `리뷰 완료: ${reviewedCount}개`,
+      `리뷰 유지: ${reusedCount}개`,
       `리뷰 경고: ${warningCount}개`,
       `댓글 전달 실패: ${deliveryFailureCount}개`,
     ]),
@@ -230,6 +252,8 @@ export {
   renderReviewFileWarning,
   renderReviewSummary,
   renderReviewWarning,
+  reviewContentKey,
+  reviewContentMarker,
   reviewFileKey,
   reviewFileMarker,
   reviewSummaryMarker,

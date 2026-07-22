@@ -12,6 +12,8 @@ import {
   renderReviewSummary,
   renderReviewWarning,
   ReviewFailure,
+  reviewContentKey,
+  reviewContentMarker,
   reviewFileKey,
   reviewFileMarker,
   sanitizeReviewMarkdown,
@@ -97,11 +99,20 @@ describe("managed review markers and branding", () => {
   it("creates stable, path-specific file markers and parses only leading managed markers", () => {
     const firstMarker = reviewFileMarker(reviewPath);
     const secondMarker = reviewFileMarker("submissions/ada/programmers/12907/solution.java");
+    const contentKey = reviewContentKey("class Solution { int value = 1; }");
 
     expect(firstMarker).toMatch(/^<!-- leetdash-opencode-review-file:[a-f0-9]{64} -->$/);
     expect(firstMarker).not.toBe(secondMarker);
     expect(reviewFileMarker(reviewPath)).toBe(firstMarker);
+    expect(contentKey).toMatch(/^[a-f0-9]{64}$/);
+    expect(contentKey).not.toBe(reviewContentKey("class Solution { int value = 2; }"));
+    expect(parseManagedReviewMarker(`${firstMarker}\n${reviewContentMarker(contentKey)}\nbody`)).toEqual({
+      kind: "file",
+      key: reviewFileKey(reviewPath),
+      contentKey,
+    });
     expect(parseManagedReviewMarker(`${firstMarker}\nbody`)).toEqual({ kind: "file", key: reviewFileKey(reviewPath) });
+    expect(parseManagedReviewMarker(`${firstMarker}\n<!-- leetdash-opencode-review-content:invalid -->\nbody`)).toEqual({ kind: "file", key: reviewFileKey(reviewPath) });
     expect(parseManagedReviewMarker("<!-- leetdash-opencode-review -->\nbody")).toEqual({ kind: "summary" });
     expect(parseManagedReviewMarker(`prefix ${firstMarker}`)).toBeUndefined();
   });
@@ -129,15 +140,17 @@ describe("managed review markers and branding", () => {
 
   it("renders branded file, warning, and summary comments", () => {
     const mascotUrl = `https://github.com/example/leetdash/raw/${"a".repeat(40)}/public/chalsakbot.png`;
+    const contentKey = reviewContentKey("class Solution {}");
     const shared = {
       path: reviewPath,
       headSha: "head-sha-123",
       runUrl: "https://github.com/example/leetdash/actions/runs/42",
       mascotUrl,
     };
-    const fileBody = renderReviewFileComment({ ...shared, markdown: "#### 요약\n읽기 쉬운 반복문입니다." });
+    const fileBody = renderReviewFileComment({ ...shared, contentKey, markdown: "#### 요약\n읽기 쉬운 반복문입니다." });
 
     expect(fileBody.startsWith(`${reviewFileMarker(reviewPath)}\n`)).toBe(true);
+    expect(fileBody).toContain(reviewContentMarker(contentKey));
     expect(fileBody).toContain("찰싹봇의 코드 리뷰");
     expect(fileBody).toContain('alt="찰싹봇 캐릭터"');
     expect(fileBody).toContain(mascotUrl);
@@ -154,6 +167,7 @@ describe("managed review markers and branding", () => {
       }),
     });
     expect(warningBody.startsWith(`${reviewFileMarker(reviewPath)}\n`)).toBe(true);
+    expect(warningBody).not.toContain("leetdash-opencode-review-content:");
     expect(warningBody).toContain("찰싹봇 리뷰 경고");
     expect(warningBody).toContain("재시도 가능: 예");
 
@@ -162,12 +176,14 @@ describe("managed review markers and branding", () => {
       runUrl: shared.runUrl,
       mascotUrl,
       reviewedCount: 2,
+      reusedCount: 1,
       warningCount: 1,
       deliveryFailureCount: 0,
     });
     expect(summary.startsWith("<!-- leetdash-opencode-review -->\n")).toBe(true);
     expect(summary).toContain("찰싹봇 리뷰 요약");
     expect(summary).toContain("리뷰 완료: 2개");
+    expect(summary).toContain("리뷰 유지: 1개");
     expect(summary).toContain("리뷰 경고: 1개");
     expect(summary).toContain("댓글 전달 실패: 0개");
   });
@@ -188,6 +204,7 @@ describe("review Markdown rendering", () => {
 
   it("embeds model Markdown directly under each trusted submission path", () => {
     const markdown = renderReviewFileComment({
+      contentKey: "a".repeat(64),
       mascotUrl: "https://github.com/example/leetdash/raw/abc1234/public/chalsakbot.png",
       headSha: "abc123",
       path: reviewPath,
@@ -203,6 +220,7 @@ describe("review Markdown rendering", () => {
 
   it("escapes trusted framing values without escaping model Markdown", () => {
     const markdown = renderReviewFileComment({
+      contentKey: "a".repeat(64),
       mascotUrl: "https://github.com/example/leetdash/raw/abc1234/public/chalsakbot.png",
       headSha: "abc\n123|def",
       path: "submissions/ada/<script>/1/solution.ts",
@@ -218,6 +236,7 @@ describe("review Markdown rendering", () => {
 
   it("keeps the managed comment below GitHub size limits", () => {
     const markdown = renderReviewFileComment({
+      contentKey: "a".repeat(64),
       mascotUrl: "https://github.com/example/leetdash/raw/abc1234/public/chalsakbot.png",
       headSha: "abc123",
       path: reviewPath,

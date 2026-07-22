@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { GitHubReviewClient, OpenCodeClient } from "../scripts/opencode-review-clients.mjs";
-import { reviewFileKey, reviewFileMarker } from "../scripts/opencode-review-core.mjs";
+import { reviewContentKey, reviewContentMarker, reviewFileKey, reviewFileMarker } from "../scripts/opencode-review-core.mjs";
 
 function jsonResponse(body, { status = 200, headers = {} } = {}) {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...headers } });
@@ -223,9 +223,10 @@ describe("GitHubReviewClient", () => {
   it("paginates and discovers only managed GitHub Actions comments", async () => {
     const requests = [];
     const reviewPath = "submissions/ada/programmers/12906/solution.java";
+    const contentKey = reviewContentKey("class Solution {}");
     const summary = { id: 301, body: "<!-- leetdash-opencode-review -->\nsummary", user: { login: "github-actions[bot]" } };
     const spoof = { id: 302, body: `${reviewFileMarker(reviewPath)}\nspoof`, user: { login: "ada" } };
-    const file = { id: 303, body: `${reviewFileMarker(reviewPath)}\nfile`, user: { login: "github-actions[bot]" } };
+    const file = { id: 303, body: `${reviewFileMarker(reviewPath)}\n${reviewContentMarker(contentKey)}\nfile`, user: { login: "github-actions[bot]" } };
     const pageOne = [...Array.from({ length: 98 }, (_, index) => ({ id: index + 1, body: "ordinary", user: { login: "ada" } })), summary, spoof];
     const client = new GitHubReviewClient({
       repository: "example/leetdash",
@@ -239,7 +240,7 @@ describe("GitHubReviewClient", () => {
 
     await expect(client.listManagedReviewComments(7)).resolves.toEqual([
       { id: summary.id, kind: "summary" },
-      { id: file.id, kind: "file", key: reviewFileKey(reviewPath) },
+      { id: file.id, kind: "file", key: reviewFileKey(reviewPath), contentKey },
     ]);
 
     expect(requests.map(({ url }) => url)).toEqual([
