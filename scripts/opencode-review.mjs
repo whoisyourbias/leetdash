@@ -5,10 +5,10 @@ import { fileURLToPath } from "node:url";
 import {
   ReviewFailure,
   buildReviewPrompt,
-  parseReviewResult,
   parseSubmissionSolutionPath,
   renderReviewComment,
   renderReviewWarning,
+  sanitizeReviewMarkdown,
 } from "./opencode-review-core.mjs";
 import { GitHubReviewClient, OpenCodeClient } from "./opencode-review-clients.mjs";
 import {
@@ -28,7 +28,6 @@ const safeFailures = Object.freeze({
   "source-read": ["SOURCE_READ_FAILED", "Submission source is unavailable."],
   "model-request": ["MODEL_REQUEST_FAILED", "OpenCode review request failed."],
   "model-response": ["MODEL_RESPONSE_INVALID", "OpenCode review response is invalid."],
-  "result-validation": ["REVIEW_RESULT_INVALID", "OpenCode review result is invalid."],
 });
 
 function isReviewableSolution(file) {
@@ -192,30 +191,38 @@ function redactModelText(value, source) {
   if (typeof source !== "string" || source.trim().length === 0) return value;
   if (value === source) return "[submitted source redacted]";
   if (source.trim().length < embeddedSourceRedactionMinimumLength) return value;
+  const canonicalLines = (text) => text
+    .replace(/\r\n?/g, "\n")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&amp;/gi, "&")
+    .split("\n")
+    .map((rawLine) => {
+      let line = rawLine.trim();
+      if (!line || /^```/.test(line)) return "";
+      let previous;
+      do {
+        previous = line;
+        line = line
+          .replace(/^>\s*/, "")
+          .replace(/^[-*+]\s+/, "")
+          .replace(/^\d+\s*(?:[|:.]|\))\s*/, "")
+          .trimStart();
+      } while (line !== previous);
+      return line.replace(/\s+/g, " ").trim();
+    })
+    .filter(Boolean);
+  const sourceLines = canonicalLines(source);
+  const valueLines = canonicalLines(value);
+  let sourceIndex = 0;
+  for (const line of valueLines) {
+    if (line === sourceLines[sourceIndex]) sourceIndex += 1;
+    if (sourceIndex === sourceLines.length) break;
+  }
+  if (sourceLines.length > 0 && sourceIndex === sourceLines.length) {
+    return "[submitted source redacted]";
+  }
   return value.split(source).join("[submitted source redacted]");
-}
-
-function redactReviewResult(result, source) {
-  return {
-    ...result,
-    summary: redactModelText(result.summary, source),
-    bug_risks: result.bug_risks.map((risk) => ({
-      ...risk,
-      location: redactModelText(risk.location, source),
-      reason: redactModelText(risk.reason, source),
-      trigger: redactModelText(risk.trigger, source),
-    })),
-    complexity: {
-      ...result.complexity,
-      time: redactModelText(result.complexity.time, source),
-      space: redactModelText(result.complexity.space, source),
-    },
-    readability: result.readability.map((item) => ({
-      ...item,
-      location: redactModelText(item.location, source),
-      suggestion: redactModelText(item.suggestion, source),
-    })),
-  };
 }
 
 async function reviewPullRequest({
@@ -296,7 +303,10 @@ async function reviewPullRequest({
           stage = "model-request";
           const raw = await openCodeClient.review({ model, apiKey, prompt });
           stage = "model-response";
-          results.push(redactReviewResult(parseReviewResult(raw, parsed.path), source));
+          results.push({
+            path: parsed.path,
+            markdown: sanitizeReviewMarkdown(redactModelText(raw, source)),
+          });
         }
         markdown = renderReviewComment({ headSha, results, runUrl });
       }

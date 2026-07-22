@@ -34,50 +34,31 @@ submission_language
 submission_code
 ```
 
-The model returns exactly one schema version 2 JSON object:
+The model returns Markdown directly for the managed PR comment:
 
-```json
-{
-  "schema_version": 2,
-  "path": "submissions/ada/programmers/12906/solution.java",
-  "overall": "No issue found | Possible issue | Improvement",
-  "summary": "one-line review summary",
-  "bug_risks": [
-    {
-      "category": "index-range | overflow | nullability | edge-case | condition",
-      "location": "source location",
-      "reason": "evidence visible in the submitted code",
-      "trigger": "condition under which the risk can occur"
-    }
-  ],
-  "complexity": {
-    "time": "complexity of the submitted code",
-    "space": "auxiliary-space complexity of the submitted code"
-  },
-  "readability": [
-    {
-      "category": "naming | function-split | duplication | magic-number",
-      "location": "source location",
-      "suggestion": "short improvement"
-    }
-  ]
-}
+```markdown
+#### Summary
+One short paragraph.
+
+#### Possible risks
+- Evidence-based possible risks with a source location and trigger condition.
+
+#### Complexity
+- Time: complexity of the submitted code
+- Space: auxiliary-space complexity of the submitted code
+
+#### Readability
+- Concrete readability suggestions with a source location.
 ```
 
-`overall` is derived by priority:
-
-1. `Possible issue` when `bug_risks` is non-empty.
-2. `Improvement` when `bug_risks` is empty and `readability` is non-empty.
-3. `No issue found` otherwise.
-
-Complexity is always reported, but it does not by itself select `Improvement`. The schema has no verdict, correctness field, algorithm hint, blocking finding, counterexample, or acceptable flag.
+Trusted code supplies the managed marker, commit, workflow URL, and submission-path heading. It renders model Markdown in an explicit quote block, neutralizes active links, mentions, raw HTML, and deceptive control characters, redacts normalized repetitions of the submission source, and truncates oversized comments before posting. The model does not return JSON, a verdict, a correctness field, an algorithm hint, a blocking finding, or a counterexample.
 
 The prompt forbids claims about correctness, expected outputs, platform-specific signatures, or whether complexity fits unknown limits. An `edge-case` finding must name a boundary condition visible from the code and must remain a possible risk, not a correctness verdict.
 
 ## Failure And Merge Policy
 
-- A valid schema v2 result always completes `opencode-review` with `success`.
-- Handled configuration, source-loading, model-request, model-response, and result-validation failures render a sanitized warning and also complete the check with `success`.
+- A non-empty Markdown review always completes `opencode-review` with `success`.
+- Handled configuration, source-loading, model-request, and model-response failures render a sanitized warning and also complete the check with `success`.
 - Failure details never include API keys, authorization headers, environment dumps, raw provider responses, or unnecessary source code.
 - Snapshot or GitHub check lifecycle failures that prevent creation or completion of the authoritative check remain workflow failures.
 - The sweeper continues requiring current-head, GitHub Actions-owned, completed/success checks named `validate` and `opencode-review`, including its pre-merge refresh.
@@ -121,13 +102,13 @@ No problem content is copied into the catalog.
 2. The reviewer parses each changed `solution.*` path only to obtain path and language.
 3. Exact-head source is read as data through GitHub REST.
 4. OpenCode receives path, language, and source.
-5. The schema v2 response is validated and rendered into the existing managed comment.
+5. The Markdown response is normalized and inserted into the existing managed comment.
 6. Progress generation resolves list item `problemKey` references and deduplicates submissions by `problemKey`.
 7. UI links use each canonical problem's `sourceUrl` and show its provider label.
 
 ## Minimal Test Strategy
 
-- Core reviewer tests: prompt exclusions, exact schema keys/enums, overall priority, and concise comment rendering.
+- Core reviewer tests: prompt exclusions, Markdown normalization, and direct comment rendering.
 - Orchestration tests: no problem client call, successful informational findings, and sanitized handled failures completing success.
 - Catalog tests: allowed providers, exact `problemKey` derivation, canonical uniqueness, and valid list references.
 - Progress/validator tests: same numeric problem ID across providers remains distinct; both new submission paths validate.
