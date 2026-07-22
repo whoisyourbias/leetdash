@@ -6,6 +6,7 @@ import {
   ReviewFailure,
   buildMascotUrl,
   buildReviewPrompt,
+  buildSourcePermalink,
   parseSubmissionSolutionPath,
   renderReviewFileComment,
   renderReviewFileWarning,
@@ -264,6 +265,8 @@ async function reviewPullRequest({
   apiKey,
   model,
   mascotUrl,
+  serverUrl,
+  headRepository,
   summaryPath,
   submissionOnly,
 }) {
@@ -278,6 +281,7 @@ async function reviewPullRequest({
   let markdown;
   let conclusion = "success";
   let activeSubmissionOnly = false;
+  let activeHeadRepository = headRepository;
   let trustedScopeValidated = typeof submissionOnly === "boolean";
   let managedComments = [];
   let managedCommentsLoaded = false;
@@ -314,6 +318,7 @@ async function reviewPullRequest({
       trustedScopeValidated = true;
       activeSubmissionOnly = scope.submissionOnly;
       activeChangedFiles = scope.changedFiles;
+      if (typeof scope.headRepository === "string") activeHeadRepository = scope.headRepository;
     }
 
     if (!activeSubmissionOnly) {
@@ -353,9 +358,23 @@ async function reviewPullRequest({
         });
         results.push(result);
         if (result.status === "reused") continue;
+        let sourceUrl;
+        try {
+          sourceUrl = buildSourcePermalink({
+            serverUrl,
+            repository: activeHeadRepository,
+            headSha,
+            path: result.path,
+          });
+        } catch (error) {
+          result.status = "warning";
+          result.failure = error instanceof ReviewFailure ? error : failureForStage("catalog-resolve");
+          delete result.contentKey;
+          delete result.markdown;
+        }
         const body = result.status === "reviewed"
-          ? renderReviewFileComment({ path: result.path, contentKey: result.contentKey, headSha, runUrl, mascotUrl, markdown: result.markdown })
-          : renderReviewFileWarning({ path: result.path, headSha, runUrl, mascotUrl, failure: result.failure });
+          ? renderReviewFileComment({ path: result.path, sourceUrl, contentKey: result.contentKey, headSha, runUrl, mascotUrl, markdown: result.markdown })
+          : renderReviewFileWarning({ path: result.path, sourceUrl, headSha, runUrl, mascotUrl, failure: result.failure });
         if (!commentDiscoveryAvailable) {
           deliveryFailureCount += 1;
           continue;
@@ -537,6 +556,8 @@ async function main(options = {}) {
     apiKey: env.OPENCODE_API_KEY,
     model: env.OPENCODE_REVIEW_MODEL,
     mascotUrl,
+    serverUrl: env.GITHUB_SERVER_URL,
+    headRepository: trustedHeadRepository,
     summaryPath: options.summaryPath ?? env.GITHUB_STEP_SUMMARY,
   });
   return { exitCode: result.conclusion === "failure" ? 1 : 0, result };
