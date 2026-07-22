@@ -69,6 +69,14 @@ describe("selectPullRequest", () => {
     expect(() => selectPullRequest([pull(), pull({ number: 50 })], expected))
       .toThrow("OpenCode pull-request resolution failed.");
   });
+
+  it.each([
+    ["invalid base SHA", { base: { ref: "master", sha: "invalid", repo: { full_name: "whoisyourbias/leetdash" } } }],
+    ["non-integer pull number", { number: "49" }],
+  ])("rejects a result with %s", (_name, override) => {
+    expect(() => selectPullRequest([pull(override)], expected))
+      .toThrow("OpenCode pull-request resolution failed.");
+  });
 });
 
 function jsonResponse(body, { status = 200 } = {}) {
@@ -201,6 +209,7 @@ describe("resolver CLI", () => {
   it.each([
     ["API status", async () => jsonResponse({ raw: "provider-secret" }, { status: 500 }), vi.fn(async () => {})],
     ["invalid JSON", async () => new Response("raw-provider-secret", { status: 200 }), vi.fn(async () => {})],
+    ["non-array JSON", async () => jsonResponse({ pulls: [] }), vi.fn(async () => {})],
     ["output write", async () => jsonResponse([pull()]), vi.fn(async () => { throw new Error("output-secret"); })],
   ])("sanitizes %s failures", async (_name, fetchImpl, appendOutput) => {
     const stderr = vi.fn();
