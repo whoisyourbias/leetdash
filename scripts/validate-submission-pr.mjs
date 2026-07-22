@@ -306,4 +306,4 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
   main();
 }
 
-export { getChangedFiles, isParticipantSubmissionPath, validateSubmissionFiles };
+export { getChangedFiles, isParticipantSubmissionPath, isSubmissionArtifactName, validateSubmissionFiles };
