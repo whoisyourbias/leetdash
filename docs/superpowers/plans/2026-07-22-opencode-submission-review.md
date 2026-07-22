@@ -470,7 +470,7 @@ to the fixed endpoint with `Authorization: Bearer test-secret`, while returning 
 
 - [ ] **Step 5: Implement OpenCode client and verify its tests GREEN**
 
-Map request/network/non-2xx failures to `model-request`/`MODEL_REQUEST_FAILED`; map successful but unreadable or missing assistant content to `model-response`/`MODEL_RESPONSE_INVALID`. Use a fixed 60-second `AbortController` timeout and clear it in `finally`.
+Map request/network/non-2xx failures to `model-request`/`MODEL_REQUEST_FAILED`; map successful but unreadable or missing assistant content to `model-response`/`MODEL_RESPONSE_INVALID`. Use one fixed 60-second deadline across both fetch and response-body parsing, abort on timeout, preserve the timeout as the sanitized model-request failure, and clear the timer only in an outer `finally`.
 
 - [ ] **Step 6: Write failing GitHub client tests**
 
@@ -507,7 +507,7 @@ git commit -m "feat: add review service clients"
 - Modify: `scripts/validate-submission-pr.mjs`
 
 **Interfaces:**
-- Export from validator: `isSubmissionArtifactName` in addition to existing exports.
+- Export from validator: `isSubmissionArtifactName` and `hasCompletePullRequestFileList(pullRequest, files)` in addition to existing exports.
 - Produce: `reviewPullRequest(options)`, `appendReviewSummary(markdown, summaryPath)`, and CLI `main()`.
 - `reviewPullRequest` accepts injected `githubClient`, `leetcodeClient`, `openCodeClient`, trusted-scope loader, file readers, catalog, and changed files for tests.
 
@@ -559,7 +559,7 @@ Spawn the CLI with controlled environment. Assert it requires `GITHUB_REPOSITORY
 
 - [ ] **Step 7: Implement CLI parsing and validator export**
 
-Accept only `--base`, `--head`, and `--pull-number`; reject the deprecated `--submission-only` path so omission cannot silently become N/A. Build the run URL from `GITHUB_SERVER_URL`, `GITHUB_REPOSITORY`, and `GITHUB_RUN_ID`. Use the GitHub client to re-fetch PR metadata/files and exact-head source content. Export the validator predicates needed to derive applicability without changing validation behavior.
+Accept only `--base`, `--head`, and `--pull-number`; reject the deprecated `--submission-only` path so omission cannot silently become N/A. Build the run URL from `GITHUB_SERVER_URL`, `GITHUB_REPOSITORY`, and `GITHUB_RUN_ID`. Use the GitHub client to re-fetch PR metadata/files and exact-head source content. Require `changed_files` to be a safe nonnegative integer no greater than 3,000 and equal to the complete fetched list length before applicability is derived. Export the validator predicates needed to derive applicability without changing validation behavior.
 
 - [ ] **Step 8: Run focused regression tests and commit Task 4**
 
@@ -663,7 +663,7 @@ const successfulChecks = [
 ];
 ```
 
-Use it in every eligible orchestration fixture. Add one test for each missing, incomplete, and failed `opencode-review` state and assert reason `opencode-review check is not successful for abc123.`. Add regressions proving a newer failed/in-progress run masks an older success, another app cannot spoof success, missing app provenance fails closed, tied latest IDs are ambiguous, and a pre-merge re-fetch catches a changed check result. Keep the existing validate-failure assertion.
+Use it in every eligible orchestration fixture, including an explicit valid `changed_files` count. Add one test for each missing, incomplete, and failed `opencode-review` state and assert reason `opencode-review check is not successful for abc123.`. Add regressions proving a newer failed/in-progress run masks an older success, another app cannot spoof success, missing app provenance fails closed, tied latest IDs are ambiguous, and missing/invalid/mismatched/over-3,000 PR-file counts fail closed. Add pre-merge regressions where refreshed draft/base/author/repository/file ownership/file-count metadata revoke eligibility and where a refreshed head SHA drives the fresh checks and exact merge. Keep the existing validate-failure assertion.
 
 - [ ] **Step 2: Run sweeper tests and verify RED**
 
@@ -673,7 +673,7 @@ Expected: FAIL because check provenance, newest-run selection, and the pre-merge
 
 - [ ] **Step 3: Implement authoritative newest-check gating**
 
-Normalize constructor/CLI input by splitting comma-separated names, trimming, removing blanks, and preserving order. For each required name, reject exact-name runs with missing provenance, filter to the configured app slug, require safe integer IDs, and evaluate only the unique greatest ID. Continue using `/commits/<headSha>/check-runs`, then fetch that endpoint again immediately before merge and repeat the full eligibility evaluation. Merge only with the exact head SHA.
+Normalize constructor/CLI input by splitting comma-separated names, trimming, removing blanks, and preserving order. For each required name, reject exact-name runs with missing provenance, filter to the configured app slug, require safe integer IDs, and evaluate only the unique greatest ID. Continue using `/commits/<headSha>/check-runs`. Immediately before merge, re-fetch the PR object and changed-file list, verify file completeness, fetch checks for the refreshed exact head SHA, and repeat the full draft/base/conflict/ownership/catalog/file/check evaluation. Merge only with that refreshed exact head SHA.
 
 - [ ] **Step 4: Write failing workflow configuration assertion**
 

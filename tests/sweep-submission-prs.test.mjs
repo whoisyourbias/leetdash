@@ -23,6 +23,7 @@ const successfulChecks = [
 function makePullRequest(overrides = {}) {
   return {
     number: 42,
+    changed_files: 1,
     user: { login: "ada" },
     draft: false,
     base: { ref: "master" },
@@ -211,6 +212,29 @@ describe("submission PR sweeper eligibility", () => {
 
     expect(decision).toEqual({ eligible: false, reason: "pull request is a draft." });
   });
+
+  it.each([
+    ["missing count", undefined, [validFile]],
+    ["non-numeric count", "1", [validFile]],
+    ["negative count", -1, [validFile]],
+    ["fractional count", 1.5, [validFile]],
+    ["unsafe integer count", Number.MAX_SAFE_INTEGER + 1, [validFile]],
+    ["mismatched count", 2, [validFile]],
+    ["count beyond the GitHub Files API limit", 3001, Array.from({ length: 3000 }, () => validFile)],
+  ])("rejects %s when the fetched PR file list cannot be complete", (_name, changedFilesCount, files) => {
+    const decision = evaluatePullRequest({
+      pullRequest: makePullRequest({ changed_files: changedFilesCount }),
+      files,
+      checkRuns: successfulChecks,
+      users,
+      catalog,
+    });
+
+    expect(decision).toEqual({
+      eligible: false,
+      reason: "pull request file list is incomplete.",
+    });
+  });
 });
 
 class FakeGitHubClient {
@@ -219,6 +243,8 @@ class FakeGitHubClient {
     this.filesByNumber = filesByNumber;
     this.checkRunsBySha = checkRunsBySha;
     this.failedMerges = failedMerges;
+    this.pullRequestCalls = [];
+    this.fileCalls = [];
     this.mergeCalls = [];
     this.dispatchCalls = [];
   }
@@ -228,10 +254,12 @@ class FakeGitHubClient {
   }
 
   async getPullRequest(number) {
+    this.pullRequestCalls.push(number);
     return this.pullRequests.find((pullRequest) => pullRequest.number === number);
   }
 
   async listPullRequestFiles(number) {
+    this.fileCalls.push(number);
     return this.filesByNumber[number] ?? [];
   }
 
@@ -264,6 +292,8 @@ describe("submission PR sweeper orchestration", () => {
     const result = await sweepSubmissionPullRequests({ client, users, catalog });
 
     expect(result.mergedCount).toBe(1);
+    expect(client.pullRequestCalls).toEqual([7, 7]);
+    expect(client.fileCalls).toEqual([7, 7]);
     expect(client.mergeCalls).toEqual([{ number: 7, sha: "sha-7" }]);
     expect(client.checkRunCalls).toEqual(["sha-7", "sha-7"]);
     expect(client.dispatchCalls).toEqual([{ workflowFile: "deploy-pages.yml", ref: "master" }]);
@@ -305,6 +335,92 @@ describe("submission PR sweeper orchestration", () => {
     expect(result.mergedCount).toBe(0);
     expect(client.mergeCalls).toEqual([]);
     expect(client.dispatchCalls).toEqual([]);
+  });
+
+  it.each([
+    [
+      "draft status",
+      makePullRequest({ number: 7, draft: true, head: { sha: "sha-7", repo: { full_name: "fork-user/leetdash" } } }),
+      [validFile],
+      "pull request is a draft.",
+    ],
+    [
+      "base branch",
+      makePullRequest({ number: 7, base: { ref: "release" }, head: { sha: "sha-7", repo: { full_name: "fork-user/leetdash" } } }),
+      [validFile],
+      "base branch is release, not master.",
+    ],
+    [
+      "author ownership and repository",
+      makePullRequest({ number: 7, user: { login: "grace" }, head: { sha: "sha-7", repo: { full_name: "grace/leetdash" } } }),
+      [validFile],
+      "pull request author grace is not registered in data/users.json.",
+    ],
+    [
+      "file-count metadata",
+      makePullRequest({ number: 7, changed_files: 2, head: { sha: "sha-7", repo: { full_name: "fork-user/leetdash" } } }),
+      [validFile],
+      "pull request file list is incomplete.",
+    ],
+    [
+      "changed file ownership",
+      makePullRequest({ number: 7, head: { sha: "sha-7", repo: { full_name: "fork-user/leetdash" } } }),
+      [{ ...validFile, filename: "submissions/grace/top-interview-easy/1/Solution.java" }],
+      "submissions/grace/top-interview-easy/1/Solution.java: submission path must belong to a registered user in data/users.json.",
+    ],
+  ])("does not let the initial snapshot authorize merge after refreshed %s changes", async (_name, refreshedPullRequest, refreshedFiles, reason) => {
+    const initialPullRequest = makePullRequest({ number: 7, head: { sha: "sha-7", repo: { full_name: "ada/leetdash" } } });
+    const client = new FakeGitHubClient({
+      pullRequests: [initialPullRequest],
+      filesByNumber: { 7: [validFile] },
+      checkRunsBySha: { "sha-7": successfulChecks },
+    });
+    let pullRequestReads = 0;
+    client.getPullRequest = async (number) => {
+      client.pullRequestCalls.push(number);
+      pullRequestReads += 1;
+      return pullRequestReads === 1 ? initialPullRequest : refreshedPullRequest;
+    };
+    let fileReads = 0;
+    client.listPullRequestFiles = async (number) => {
+      client.fileCalls.push(number);
+      fileReads += 1;
+      return fileReads === 1 ? [validFile] : refreshedFiles;
+    };
+
+    const result = await sweepSubmissionPullRequests({ client, users, catalog });
+
+    expect(result).toEqual({
+      mergedCount: 0,
+      results: [{ number: 7, status: "skipped", reason }],
+    });
+    expect(client.pullRequestCalls).toEqual([7, 7]);
+    expect(client.fileCalls).toEqual([7, 7]);
+    expect(client.mergeCalls).toEqual([]);
+  });
+
+  it("uses the refreshed head SHA for refreshed files, checks, and the exact merge", async () => {
+    const initialPullRequest = makePullRequest({ number: 7, head: { sha: "sha-7", repo: { full_name: "ada/leetdash" } } });
+    const refreshedPullRequest = makePullRequest({ number: 7, head: { sha: "sha-8", repo: { full_name: "ada/leetdash" } } });
+    const client = new FakeGitHubClient({
+      pullRequests: [initialPullRequest],
+      filesByNumber: { 7: [validFile] },
+      checkRunsBySha: { "sha-7": successfulChecks, "sha-8": successfulChecks },
+    });
+    let pullRequestReads = 0;
+    client.getPullRequest = async (number) => {
+      client.pullRequestCalls.push(number);
+      pullRequestReads += 1;
+      return pullRequestReads === 1 ? initialPullRequest : refreshedPullRequest;
+    };
+
+    const result = await sweepSubmissionPullRequests({ client, users, catalog });
+
+    expect(result.mergedCount).toBe(1);
+    expect(client.pullRequestCalls).toEqual([7, 7]);
+    expect(client.fileCalls).toEqual([7, 7]);
+    expect(client.checkRunCalls).toEqual(["sha-7", "sha-8"]);
+    expect(client.mergeCalls).toEqual([{ number: 7, sha: "sha-8" }]);
   });
 });
 

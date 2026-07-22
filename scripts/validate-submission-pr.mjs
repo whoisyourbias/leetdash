@@ -3,6 +3,8 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+const maxPullRequestFiles = 3000;
+
 const solutionExtensions = new Set([
   "c",
   "cc",
@@ -156,6 +158,15 @@ function isSubmissionArtifactName(filename) {
   );
 }
 
+function hasCompletePullRequestFileList(pullRequest, files) {
+  const changedFiles = pullRequest?.changed_files;
+  return Number.isSafeInteger(changedFiles)
+    && changedFiles >= 0
+    && changedFiles <= maxPullRequestFiles
+    && Array.isArray(files)
+    && files.length === changedFiles;
+}
+
 function isParticipantSubmissionPath(filePath) {
   if (!filePath.startsWith("submissions/") || filePath === "submissions/README.md") {
     return false;
@@ -306,4 +317,10 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
   main();
 }
 
-export { getChangedFiles, isParticipantSubmissionPath, isSubmissionArtifactName, validateSubmissionFiles };
+export {
+  getChangedFiles,
+  hasCompletePullRequestFileList,
+  isParticipantSubmissionPath,
+  isSubmissionArtifactName,
+  validateSubmissionFiles,
+};

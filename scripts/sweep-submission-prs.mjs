@@ -2,7 +2,11 @@ import { appendFileSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { isParticipantSubmissionPath, validateSubmissionFiles } from "./validate-submission-pr.mjs";
+import {
+  hasCompletePullRequestFileList,
+  isParticipantSubmissionPath,
+  validateSubmissionFiles,
+} from "./validate-submission-pr.mjs";
 
 const defaultBaseBranch = "master";
 const defaultRequiredChecks = ["validate", "opencode-review"];
@@ -72,6 +76,10 @@ function evaluatePullRequest({
   const headSha = pullRequest.head?.sha;
   if (!headSha) {
     return { eligible: false, reason: "pull request head SHA is missing." };
+  }
+
+  if (!hasCompletePullRequestFileList(pullRequest, files)) {
+    return { eligible: false, reason: "pull request file list is incomplete." };
   }
 
   if (pullRequest.mergeable === false || pullRequest.mergeable_state === "dirty") {
@@ -239,10 +247,13 @@ async function sweepSubmissionPullRequests({
       continue;
     }
 
-    const refreshedCheckRuns = await client.listCheckRuns(pullRequest.head.sha);
+    const refreshedPullRequest = await client.getPullRequest(pullRequestSummary.number);
+    const refreshedFiles = await client.listPullRequestFiles(pullRequestSummary.number);
+    const refreshedHeadSha = refreshedPullRequest?.head?.sha;
+    const refreshedCheckRuns = refreshedHeadSha ? await client.listCheckRuns(refreshedHeadSha) : [];
     const refreshedDecision = evaluatePullRequest({
-      pullRequest,
-      files,
+      pullRequest: refreshedPullRequest,
+      files: refreshedFiles,
       checkRuns: refreshedCheckRuns,
       users,
       catalog,
@@ -257,14 +268,14 @@ async function sweepSubmissionPullRequests({
     }
 
     try {
-      await client.mergePullRequest(pullRequest.number, pullRequest.head.sha);
-      console.log(`#${pullRequest.number} merged.`);
+      await client.mergePullRequest(pullRequestSummary.number, refreshedHeadSha);
+      console.log(`#${pullRequestSummary.number} merged.`);
       mergedCount += 1;
-      results.push({ number: pullRequest.number, status: "merged" });
+      results.push({ number: pullRequestSummary.number, status: "merged" });
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      console.log(`#${pullRequest.number} merge failed: ${reason}`);
-      results.push({ number: pullRequest.number, status: "merge_failed", reason });
+      console.log(`#${pullRequestSummary.number} merge failed: ${reason}`);
+      results.push({ number: pullRequestSummary.number, status: "merge_failed", reason });
     }
   }
 

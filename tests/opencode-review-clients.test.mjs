@@ -112,6 +112,49 @@ describe("OpenCodeClient", () => {
     });
   });
 
+  it("times out stalled response-body parsing with a sanitized model-request failure", async () => {
+    vi.useFakeTimers();
+    const apiKey = "body-timeout-api-key";
+    const rawBody = "raw-pending-provider-body";
+    let requestSignal;
+    try {
+      const client = new OpenCodeClient({
+        fetchImpl: async (_url, init) => {
+          requestSignal = init.signal;
+          return {
+            ok: true,
+            status: 200,
+            headers: { get: () => null },
+            json: async () => new Promise(() => rawBody),
+          };
+        },
+      });
+      const failurePromise = client.review({
+        model: "opencode-go/kimi-k2.7-code",
+        apiKey,
+        prompt: "review prompt",
+      }).catch((failure) => failure);
+
+      await vi.advanceTimersByTimeAsync(0);
+      expect(vi.getTimerCount()).toBe(1);
+      await vi.advanceTimersByTimeAsync(60_000);
+      const failure = await failurePromise;
+
+      expect(requestSignal).toBeInstanceOf(AbortSignal);
+      expect(requestSignal.aborted).toBe(true);
+      expect(failure).toMatchObject({
+        stage: "model-request",
+        reason: "MODEL_REQUEST_FAILED",
+        detail: "OpenCode request failed.",
+      });
+      expect(failure.detail).not.toContain(apiKey);
+      expect(failure.detail).not.toContain(rawBody);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("redacts API keys and provider response bodies from request failures", async () => {
     const apiKey = "test-secret";
     const responseBody = "provider-body-secret";
@@ -190,7 +233,7 @@ describe("GitHubReviewClient", () => {
         const requestUrl = new URL(url);
         requests.push({ url: requestUrl, init });
         if (requestUrl.pathname.endsWith("/pulls/42")) {
-          return jsonResponse({ number: 42, base: { sha: "base-123" }, head: { sha: "head-123", repo: { full_name: "fork-user/leetdash" } } });
+          return jsonResponse({ number: 42, changed_files: 1, base: { sha: "base-123" }, head: { sha: "head-123", repo: { full_name: "fork-user/leetdash" } } });
         }
         if (requestUrl.pathname.endsWith("/pulls/42/files")) {
           return jsonResponse([{ status: "modified", filename: "submissions/ada/list/1/solution.java" }]);

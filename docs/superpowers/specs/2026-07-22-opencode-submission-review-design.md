@@ -53,7 +53,7 @@ The core module accepts plain objects and returns plain objects so tests can exe
 
 This module contains orchestration and external clients:
 
-- obtains PR metadata and changed files from GitHub REST and derives submission-only applicability inside trusted code;
+- obtains PR metadata and changed files from GitHub REST, requires a safe nonnegative `changed_files` count no greater than the Files API's 3,000-file limit and exactly equal to the fetched list length, and derives submission-only applicability inside trusted code;
 - reads the catalog and user registry from the trusted base checkout and fetches changed solution source from the verified PR head repository at the exact head SHA as inert REST data;
 - fetches and caches LeetCode question data by canonical slug;
 - calls the OpenCode Go chat-completions endpoint;
@@ -82,7 +82,7 @@ The Actions job itself has a different display name so it does not create a seco
 
 1. The trusted workflow passes the PR number plus the base and head SHAs from the completed validation run to trusted base-branch code.
 2. The script creates an in-progress `opencode-review` check run for the exact head SHA.
-3. The GitHub client re-fetches PR metadata, requires the same base/head SHAs, lists PR files, normalizes statuses, and uses trusted catalog/user data plus the existing validator to derive submission-only applicability.
+3. The GitHub client re-fetches PR metadata, requires the same base/head SHAs, lists PR files, and fails closed unless the safe nonnegative `changed_files` count is at most 3,000 and exactly matches the fetched list length. It then normalizes statuses and uses trusted catalog/user data plus the existing validator to derive submission-only applicability.
 4. For a non-submission PR, the script completes that check successfully and stops.
 5. For a submission-only PR, it selects added or modified `solution.*` paths and fetches each source from the verified PR head repository through the Contents REST API with `ref=<exact head SHA>`; source is handled only as data.
 6. Each path is parsed as `submissions/<user>/<sourceKey>/<submissionKey>/solution.<extension>`.
@@ -91,7 +91,7 @@ The Actions job itself has a different display name so it does not create a seco
 9. The normalized question contains content with examples and constraints, example test cases, parsed judge metadata, the official code snippet matching the submission language, and topic tags.
 10. The prompt includes the problem identity, all normalized live context, the exact repository path, language, and submitted source.
 11. The OpenCode client accepts only `opencode-go/kimi-k2.7-code` and sends the fixed API model `kimi-k2.7-code` with temperature zero and JSON-only instructions.
-12. The response must contain exactly one choice whose message role is `assistant` and whose content is a non-blank string. The script parses that content as JSON and validates the schema and verdict invariants.
+12. One 60-second deadline spans both the OpenCode fetch and successful-response body parsing. Timeout aborts the request and becomes the fixed sanitized `model-request/MODEL_REQUEST_FAILED` failure. A completed response must contain exactly one choice whose message role is `assistant` and whose content is a non-blank string; the script parses that content as JSON and validates the schema and verdict invariants.
 13. Results for all changed solutions are aggregated. Any code FAIL makes the check fail. Otherwise the check succeeds.
 14. The script upserts one managed bot comment and completes the check with the same sanitized summary.
 
@@ -165,7 +165,7 @@ Comment delivery happens after the review verdict is known. If comment listing, 
 
 ## Sweeper integration
 
-The sweeper accepts an ordered list of required checks instead of one check. Its default and workflow configuration are `validate,opencode-review`, with authoritative app slug `github-actions`. For each exact check name it selects the unique newest run by check-run ID from that app; a newer failed or in-progress run masks older success, and missing/ambiguous provenance fails closed. Immediately before merging, the sweeper re-fetches all check runs for the same head SHA and repeats eligibility evaluation.
+The sweeper accepts an ordered list of required checks instead of one check. Its default and workflow configuration are `validate,opencode-review`, with authoritative app slug `github-actions`. For each exact check name it selects the unique newest run by check-run ID from that app; a newer failed or in-progress run masks older success, and missing/ambiguous provenance fails closed. It applies the same PR-file completeness contract as trusted review scope. Immediately before merging, the sweeper re-fetches the PR object, changed-file list, and check runs for the refreshed exact head SHA, then fully repeats draft/base/conflict/ownership/catalog/file-completeness/check eligibility. Only the refreshed head SHA is sent to the merge API.
 
 The existing path ownership, catalog validation, draft, conflict, base branch, and exact merge SHA protections remain unchanged.
 
@@ -188,14 +188,15 @@ Unit and orchestration tests use temporary files and injected clients. They cove
 - missing list, item, problem, language snippet, content, metadata, and examples;
 - one GraphQL request for multiple solutions with the same slug;
 - inclusion of problem content, test cases, judge metadata, official template, tags, path, and source in the prompt;
-- exact OpenCode configuration/API models and exactly one non-blank assistant choice;
+- exact OpenCode configuration/API models, exactly one non-blank assistant choice, and a response-body timeout that remains a sanitized model-request failure;
 - PASS and FAIL schema validation, path equality, invariant conflicts, and counterexamples;
 - each stable stage and reason code plus retryability and request-ID extraction;
 - raw secret, authorization, response body, model output, and source-code exclusion from logs and rendered failures;
 - managed-comment creation, update, marker spoof preservation, failure-to-success replacement, and API-failure fallback;
 - exact-head check creation and completion;
 - successful no-op behavior for non-submission pull requests;
-- sweeper acceptance only when the newest authoritative runs for both required checks succeed, including pre-merge revalidation;
+- PR-file completeness against safe `changed_files` metadata, including missing, invalid, mismatched, and over-3,000 cases;
+- sweeper acceptance only when the newest authoritative runs for both required checks succeed on a fully refreshed pre-merge PR/files/check snapshot;
 - trusted `workflow_run` trigger, base-SHA checkout, disabled checkout credentials, minimal permissions, and removal of secrets from the PR workflow.
 
 The complete existing test suite, typecheck, and production build run before completion. A live LeetCode read-only smoke request may verify the current GraphQL shape, but automated tests do not depend on external services.

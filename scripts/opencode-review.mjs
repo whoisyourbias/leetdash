@@ -13,6 +13,7 @@ import {
 } from "./opencode-review-core.mjs";
 import { GitHubReviewClient, LeetCodeClient, OpenCodeClient } from "./opencode-review-clients.mjs";
 import {
+  hasCompletePullRequestFileList,
   isParticipantSubmissionPath,
   isSubmissionArtifactName,
   validateSubmissionFiles,
@@ -101,7 +102,7 @@ async function loadTrustedPullRequestScope({
   } catch {
     throw changedFilesLoadFailure();
   }
-  if (!Array.isArray(files)) throw changedFilesLoadFailure();
+  if (!hasCompletePullRequestFileList(pullRequest, files)) throw changedFilesLoadFailure();
   const changedFiles = files.map(normalizePullRequestFile);
   const submissionOnly = changedFiles.length > 0
     && changedFiles.every((file) => isParticipantSubmissionPath(file.path));

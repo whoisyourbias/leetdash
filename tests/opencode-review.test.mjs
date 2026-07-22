@@ -409,7 +409,7 @@ describe("trusted pull-request scope", () => {
       githubClient: {
         getPullRequest: async (number) => {
           calls.push(["pull", number]);
-          return { number, user: { login: "ada" }, base: { sha: "base-sha" }, head: { sha: "head-sha", repo: { full_name: "fork-user/leetdash" } } };
+          return { number, changed_files: 1, user: { login: "ada" }, base: { sha: "base-sha" }, head: { sha: "head-sha", repo: { full_name: "fork-user/leetdash" } } };
         },
         listPullRequestFiles: async (number) => {
           calls.push(["files", number]);
@@ -437,7 +437,7 @@ describe("trusted pull-request scope", () => {
   ])("fails closed when the pull-request %s SHA no longer matches the triggering run", async (_name, refs) => {
     await expect(loadTrustedPullRequestScope({
       githubClient: {
-        getPullRequest: async () => ({ number: 42, user: { login: "ada" }, ...refs }),
+        getPullRequest: async () => ({ number: 42, changed_files: 1, user: { login: "ada" }, ...refs }),
         listPullRequestFiles: async () => { throw new Error("must not list mismatched PR files"); },
       },
       pullNumber: 42,
@@ -451,7 +451,7 @@ describe("trusted pull-request scope", () => {
   it("classifies ordinary application changes as not applicable without submission validation", async () => {
     await expect(loadTrustedPullRequestScope({
       githubClient: {
-        getPullRequest: async () => ({ number: 42, user: { login: "ada" }, base: { sha: "base-sha" }, head: { sha: "head-sha", repo: { full_name: "example/leetdash" } } }),
+        getPullRequest: async () => ({ number: 42, changed_files: 1, user: { login: "ada" }, base: { sha: "base-sha" }, head: { sha: "head-sha", repo: { full_name: "example/leetdash" } } }),
         listPullRequestFiles: async () => [{ status: "modified", filename: "app/page.tsx" }],
       },
       pullNumber: 42,
@@ -463,6 +463,38 @@ describe("trusted pull-request scope", () => {
       submissionOnly: false,
       changedFiles: [{ status: "M", path: "app/page.tsx" }],
       headRepository: "example/leetdash",
+    });
+  });
+
+  it.each([
+    ["missing count", undefined, [{ status: "modified", filename: "app/page.tsx" }]],
+    ["non-numeric count", "1", [{ status: "modified", filename: "app/page.tsx" }]],
+    ["negative count", -1, [{ status: "modified", filename: "app/page.tsx" }]],
+    ["fractional count", 1.5, [{ status: "modified", filename: "app/page.tsx" }]],
+    ["unsafe integer count", Number.MAX_SAFE_INTEGER + 1, [{ status: "modified", filename: "app/page.tsx" }]],
+    ["mismatched count", 2, [{ status: "modified", filename: "app/page.tsx" }]],
+    ["count beyond the GitHub Files API limit", 3001, Array.from({ length: 3000 }, () => ({ status: "modified", filename: "app/page.tsx" }))],
+  ])("fails closed with a sanitized infrastructure failure for %s", async (_name, changedFilesCount, files) => {
+    await expect(loadTrustedPullRequestScope({
+      githubClient: {
+        getPullRequest: async () => ({
+          number: 42,
+          changed_files: changedFilesCount,
+          user: { login: "ada" },
+          base: { sha: "base-sha" },
+          head: { sha: "head-sha", repo: { full_name: "example/leetdash" } },
+        }),
+        listPullRequestFiles: async () => files,
+      },
+      pullNumber: 42,
+      baseSha: "base-sha",
+      headSha: "head-sha",
+      catalog,
+      users,
+    })).rejects.toMatchObject({
+      stage: "catalog-resolve",
+      reason: "CATALOG_MAPPING_FAILED",
+      detail: "변경된 제출 파일 목록을 가져오지 못했습니다.",
     });
   });
 });
@@ -545,7 +577,7 @@ describe("opencode-review CLI", () => {
       createCheck: async (value) => { checks.push(value); return { id: 17 }; },
       completeCheck: async (value) => { checks.push(value); },
       upsertReviewComment: async () => {},
-      getPullRequest: async () => ({ number: 42, user: { login: "ada" }, base: { sha: "base-sha" }, head: { sha: "head-sha", repo: { full_name: "fork-user/leetdash" } } }),
+      getPullRequest: async () => ({ number: 42, changed_files: 1, user: { login: "ada" }, base: { sha: "base-sha" }, head: { sha: "head-sha", repo: { full_name: "fork-user/leetdash" } } }),
       listPullRequestFiles: async () => [{ status: "modified", filename: firstPath }],
       getFileContent: async (value) => { sourceReads.push(value); return source; },
     };
@@ -581,7 +613,7 @@ describe("opencode-review CLI", () => {
       createCheck: async () => ({ id: 17 }),
       completeCheck: async (value) => { completed.push(value); },
       upsertReviewComment: async () => { reviewCalls += 1; },
-      getPullRequest: async () => ({ number: 42, user: { login: "ada" }, base: { sha: "base-sha" }, head: { sha: "head-sha", repo: { full_name: "example/leetdash" } } }),
+      getPullRequest: async () => ({ number: 42, changed_files: 1, user: { login: "ada" }, base: { sha: "base-sha" }, head: { sha: "head-sha", repo: { full_name: "example/leetdash" } } }),
       listPullRequestFiles: async () => [{ status: "modified", filename: "app/page.tsx" }],
       getFileContent: async () => { reviewCalls += 1; },
     };
@@ -612,7 +644,7 @@ describe("opencode-review CLI", () => {
       createCheck: async () => ({ id: 17 }),
       completeCheck: async (value) => { completed.push(value); },
       upsertReviewComment: async () => {},
-      getPullRequest: async () => ({ number: 42, user: { login: "ada" }, base: { sha: "base-sha" }, head: { sha: "head-sha", repo: { full_name: "example/leetdash" } } }),
+      getPullRequest: async () => ({ number: 42, changed_files: 1, user: { login: "ada" }, base: { sha: "base-sha" }, head: { sha: "head-sha", repo: { full_name: "example/leetdash" } } }),
       listPullRequestFiles: async () => [{ status: "modified", filename: firstPath }],
       getFileContent: async () => { throw new Error("source must not be fetched without review configuration"); },
     };

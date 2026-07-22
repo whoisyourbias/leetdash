@@ -149,62 +149,77 @@ class OpenCodeClient {
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), externalRequestTimeoutMs);
-    let response;
+    const requestFailure = () => new ReviewFailure({
+      stage: "model-request",
+      reason: "MODEL_REQUEST_FAILED",
+      detail: "OpenCode request failed.",
+    });
+    let timeout;
+    const timeoutFailure = new Promise((_resolve, reject) => {
+      timeout = setTimeout(() => {
+        reject(requestFailure());
+        controller.abort();
+      }, externalRequestTimeoutMs);
+    });
     try {
-      response = await this.fetchImpl(openCodeChatCompletionsUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: openCodeApiModel,
-          temperature: 0,
-          messages: [{ role: "user", content: prompt }],
-        }),
-        signal: controller.signal,
-      });
-    } catch {
-      throw new ReviewFailure({
-        stage: "model-request",
-        reason: "MODEL_REQUEST_FAILED",
-        detail: "OpenCode request failed.",
-      });
+      let response;
+      try {
+        response = await Promise.race([
+          this.fetchImpl(openCodeChatCompletionsUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              model: openCodeApiModel,
+              temperature: 0,
+              messages: [{ role: "user", content: prompt }],
+            }),
+            signal: controller.signal,
+          }),
+          timeoutFailure,
+        ]);
+      } catch (error) {
+        if (error instanceof ReviewFailure) throw error;
+        throw requestFailure();
+      }
+
+      if (!response?.ok) {
+        throw toSafeHttpFailure({
+          stage: "model-request",
+          reason: "MODEL_REQUEST_FAILED",
+          response,
+          detail: "OpenCode request failed.",
+        });
+      }
+
+      let body;
+      try {
+        body = await Promise.race([response.json(), timeoutFailure]);
+      } catch (error) {
+        if (error instanceof ReviewFailure) throw error;
+        if (controller.signal.aborted) throw requestFailure();
+        throw new ReviewFailure({
+          stage: "model-response",
+          reason: "MODEL_RESPONSE_INVALID",
+          detail: "OpenCode returned an invalid response.",
+        });
+      }
+      const choices = body?.choices;
+      const message = Array.isArray(choices) && choices.length === 1 ? choices[0]?.message : undefined;
+      const content = message?.content;
+      if (message?.role !== "assistant" || typeof content !== "string" || content.trim().length === 0) {
+        throw new ReviewFailure({
+          stage: "model-response",
+          reason: "MODEL_RESPONSE_INVALID",
+          detail: "OpenCode response is missing assistant content.",
+        });
+      }
+      return content;
     } finally {
       clearTimeout(timeout);
     }
-
-    if (!response?.ok) {
-      throw toSafeHttpFailure({
-        stage: "model-request",
-        reason: "MODEL_REQUEST_FAILED",
-        response,
-        detail: "OpenCode request failed.",
-      });
-    }
-
-    let body;
-    try {
-      body = await response.json();
-    } catch {
-      throw new ReviewFailure({
-        stage: "model-response",
-        reason: "MODEL_RESPONSE_INVALID",
-        detail: "OpenCode returned an invalid response.",
-      });
-    }
-    const choices = body?.choices;
-    const message = Array.isArray(choices) && choices.length === 1 ? choices[0]?.message : undefined;
-    const content = message?.content;
-    if (message?.role !== "assistant" || typeof content !== "string" || content.trim().length === 0) {
-      throw new ReviewFailure({
-        stage: "model-response",
-        reason: "MODEL_RESPONSE_INVALID",
-        detail: "OpenCode response is missing assistant content.",
-      });
-    }
-    return content;
   }
 }
 
