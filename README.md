@@ -2,13 +2,15 @@
 
 ## 제출 규칙
 
-풀이 폴더는 반드시 아래 세 소스별 규칙을 따릅니다. `slug`나 LeetCode 내부 ID는 참가자 폴더명으로 쓰지 않습니다.
+풀이 폴더는 반드시 아래 소스별 규칙을 따릅니다. `slug`나 LeetCode 내부 ID는 참가자 폴더명으로 쓰지 않습니다.
 
 | 소스 | `sourceKey` | `submissionKey` 기준 | 예시 경로 |
 | --- | --- | --- | --- |
 | Top Interview Questions Easy | `top-interview-easy` | 문제 고유 LeetCode 번호 | `submissions/<githubUsername>/top-interview-easy/66/solution.ts` |
 | LeetCode 75 | `leetcode-75` | 문제 제목 앞 LeetCode 번호 | `submissions/<githubUsername>/leetcode-75/1768/solution.ts` |
 | Top Interview 150 | `top-interview-150` | 문제 제목 앞 LeetCode 번호 | `submissions/<githubUsername>/top-interview-150/88/solution.ts` |
+| Programmers | `programmers` | 프로그래머스 문제 번호 | `submissions/<githubUsername>/programmers/12906/solution.java` |
+| SWEA | `swea` | SWEA 문제 번호 | `submissions/<githubUsername>/swea/1206/solution.py` |
 
 예를 들어 `https://leetcode.com/problems/plus-one/description/`의 `Plus One`은 LeetCode 문제 번호가 `66`이므로 제출 키도 `66`입니다. Explore URL의 마지막 숫자는 제출 키로 쓰지 않습니다. `1768. Merge Strings Alternately`는 `1768`, `88. Merge Sorted Array`는 `88`입니다.
 
@@ -29,6 +31,8 @@
 - PR에 충돌이 있을 때만 원본 레포의 최신 `master`를 본인의 작업 브랜치에 반영해 해결합니다.
 
 공개 페이지에는 `master`에 머지된 제출만 반영됩니다. 개인 브랜치는 직접 스캔하지 않습니다.
+
+제출 대상이 `data/problem-catalog.json`에 아직 없으면 운영자가 카탈로그 변경 PR을 먼저 머지합니다. 참가자는 그 변경이 `master`에 반영된 뒤 풀이 파일만 담은 별도 PR을 만듭니다.
 
 PR은 `validate` 검증과 리뷰 조건을 통과하면 다른 PR의 GitHub Pages 배포 완료를 기다리지 않고 머지합니다. 저장소는 merge commit만 허용하며, squash merge와 rebase merge는 사용하지 않습니다.
 
@@ -77,6 +81,12 @@ submissions/
     top-interview-150/
       88/
         solution.py
+    programmers/
+      12906/
+        solution.java
+    swea/
+      1206/
+        solution.py
 ```
 
 대시보드는 문제 폴더 안에서 지원되는 `solution.{ext}` 파일을 찾으면 해당 문제를 완료로 계산합니다. 파일명 basename인 `solution`은 대소문자를 구분하지 않으므로 `Solution.java`도 인식합니다.
@@ -106,7 +116,7 @@ c, cc, cpp, cs, dart, go, java, js, kt, php, py, rb, rs, scala, sql, swift, ts
 
 `meta.json`만 있고 풀이 파일이 없으면 기본 상태는 `reviewing`입니다. `solution.*`만 있고 `meta.json`이 없으면 기본 상태는 `solved`입니다. 예전 `solutions/<id>/` 경로나 slug 폴더명은 공식 제출 경로로 인식하지 않습니다.
 
-같은 문제가 여러 소스에 들어 있는 경우 canonical `slug` 기준으로 한 문제로 집계합니다. 여러 제출이 있으면 `solved`, `reviewing`, `skipped` 순서로 더 높은 상태를 우선합니다.
+같은 문제가 여러 목록에 들어 있는 경우 canonical `problemKey` 기준으로 한 문제로 집계합니다. 여러 제출이 있으면 `solved`, `reviewing`, `skipped` 순서로 더 높은 상태를 우선합니다.
 
 ## 문제 카탈로그
 
@@ -117,8 +127,10 @@ c, cc, cpp, cs, dart, go, java, js, kt, php, py, rb, rs, scala, sql, swift, ts
 - Top Interview Questions Easy
 - LeetCode 75
 - Top Interview 150
+- Programmers
+- SWEA
 
-카탈로그에서 각 목록의 `items[].submissionKey`가 실제 제출 폴더명입니다. 모든 목록은 LeetCode 문제 번호를 사용하며, Top Interview Questions Easy도 Explore URL 마지막 숫자가 아니라 문제 고유 LeetCode 번호를 사용합니다.
+카탈로그에서 각 목록의 `items[].submissionKey`가 실제 제출 폴더명입니다. LeetCode 목록은 LeetCode 문제 번호를 사용하며, Top Interview Questions Easy도 Explore URL 마지막 숫자가 아니라 문제 고유 LeetCode 번호를 사용합니다. Programmers와 SWEA는 각 플랫폼의 문제 번호를 사용합니다.
 
 카탈로그 재생성은 운영자가 문제 목록 자체를 다시 만들 때만 사용합니다. 일반 참가자는 이 명령을 실행할 필요가 없습니다.
 

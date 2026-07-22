@@ -3,13 +3,18 @@ import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { ActivityCalendar } from "@/app/components/activity-calendar";
 import { FirstUnsolvedProblemScroller } from "@/app/components/first-unsolved-problem-scroller";
-import { getProblemLeetCodeUrl } from "@/lib/catalog";
 import { difficultyLabel, formatDate, formatDateKey, formatPercent, statusLabel } from "@/lib/format";
 import { getGithubProfileUrl } from "@/lib/github";
 import { formatCatalogListTitle, formatCatalogSection, formatProblemTitle } from "@/lib/i18n";
 import { getUserDetail, listStaticUsers } from "@/lib/progress";
 
 export const dynamicParams = false;
+
+const providerLabels = {
+  leetcode: "LeetCode",
+  programmers: "Programmers",
+  swea: "SWEA",
+} as const;
 
 export async function generateStaticParams() {
   const users = await listStaticUsers();
@@ -112,13 +117,13 @@ export default async function UserDetailPage({ params }: { params: Promise<{ use
                 {list.items.map((item) => {
                   const isFirstUnsolvedProblem =
                     firstUnsolvedProblemTarget?.listKey === list.key &&
-                    firstUnsolvedProblemTarget.problemSlug === item.slug;
+                    firstUnsolvedProblemTarget.problemKey === item.problemKey;
 
                   return (
                     <tr
                       className={isFirstUnsolvedProblem ? "problem-row-target" : undefined}
                       id={isFirstUnsolvedProblem ? firstUnsolvedProblemTarget.elementId : undefined}
-                      key={`${list.key}-${item.slug}`}
+                      key={`${list.key}-${item.problemKey}`}
                     >
                       <td className="mono">{item.order}</td>
                       <td>
@@ -144,9 +149,9 @@ export default async function UserDetailPage({ params }: { params: Promise<{ use
                       <td>{formatDate(item.submission?.solvedAt)}</td>
                       <td>
                         <div className="actions">
-                          <a className="button" href={getProblemLeetCodeUrl(item.slug)} target="_blank" rel="noreferrer">
+                          <a className="button" href={item.problem.sourceUrl} target="_blank" rel="noreferrer">
                             <ExternalLink size={16} aria-hidden="true" />
-                            LeetCode
+                            {providerLabels[item.problem.provider]}
                           </a>
                           {item.submission?.githubUrl ? (
                             <a className="button" href={item.submission.githubUrl} target="_blank" rel="noreferrer">

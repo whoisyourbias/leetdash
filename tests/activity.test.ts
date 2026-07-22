@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildActivityCalendar, getSeoulDateKey } from "@/lib/activity";
 import type { ActivityDay } from "@/lib/types";
 
-const submissions = [{ problemSlug: "two-sum", sourceKey: "top-interview-easy", submissionKey: "1" }];
+const submissions = [{ problemKey: "leetcode:1", sourceKey: "top-interview-easy", submissionKey: "1" }];
 
 describe("activity calendar helpers", () => {
   it("converts timestamps to Asia/Seoul date keys", () => {

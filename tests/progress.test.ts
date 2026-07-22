@@ -4,9 +4,9 @@ import { SubmissionStatus, type Submission } from "@/lib/types";
 
 function submission(overrides: Partial<Submission>): Submission {
   return {
-    id: `ada:${overrides.problemSlug}`,
+    id: `ada:${overrides.problemKey}`,
     userId: "ada",
-    problemSlug: "two-sum",
+    problemKey: "leetcode:1",
     sourceKey: "top-interview-easy",
     submissionKey: "1",
     status: SubmissionStatus.SOLVED,
@@ -18,28 +18,28 @@ function submission(overrides: Partial<Submission>): Submission {
 
 describe("dashboard progress helpers", () => {
   it("returns ten recent solved submissions by default", () => {
-    const problemSlugs = [
-      "remove-duplicates-from-sorted-array",
-      "best-time-to-buy-and-sell-stock-ii",
-      "rotate-array",
-      "contains-duplicate",
-      "single-number",
-      "intersection-of-two-arrays-ii",
-      "plus-one",
-      "move-zeroes",
-      "two-sum",
-      "valid-sudoku",
-      "rotate-image",
+    const problemKeys = [
+      "leetcode:26",
+      "leetcode:122",
+      "leetcode:189",
+      "leetcode:217",
+      "leetcode:136",
+      "leetcode:350",
+      "leetcode:66",
+      "leetcode:283",
+      "leetcode:1",
+      "leetcode:36",
+      "leetcode:48",
     ];
     const rows = [
       {
         id: "ada",
         displayName: "Ada Lovelace",
         githubUsername: "ada",
-        submissions: problemSlugs.map((problemSlug, index) =>
+        submissions: problemKeys.map((problemKey, index) =>
           submission({
-            id: `ada:${problemSlug}`,
-            problemSlug,
+            id: `ada:${problemKey}`,
+            problemKey,
             sourceKey: "top-interview-easy",
             submissionKey: String(index + 1),
             submittedAt: `2024-01-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`,
@@ -51,8 +51,8 @@ describe("dashboard progress helpers", () => {
     const recentSubmissions = buildRecentSolvedSubmissions(rows);
 
     expect(recentSubmissions).toHaveLength(10);
-    expect(recentSubmissions[0]?.problemSlug).toBe("rotate-image");
-    expect(recentSubmissions.at(-1)?.problemSlug).toBe("best-time-to-buy-and-sell-stock-ii");
+    expect(recentSubmissions[0]?.problemKey).toBe("leetcode:48");
+    expect(recentSubmissions.at(-1)?.problemKey).toBe("leetcode:122");
   });
 
   it("exposes each user's solved count for the last 35 days", async () => {
@@ -97,13 +97,13 @@ describe("dashboard progress helpers", () => {
     }
 
     const expected = detail.lists
-      .flatMap((list) => list.items.map((item) => ({ listKey: list.key, problemSlug: item.slug, submission: item.submission })))
+      .flatMap((list) => list.items.map((item) => ({ listKey: list.key, problemKey: item.problemKey, submission: item.submission })))
       .find((item) => item.submission?.status !== SubmissionStatus.SOLVED);
 
     expect(detail.firstUnsolvedProblemTarget).toEqual({
       elementId: "first-unsolved-problem",
       listKey: expected?.listKey,
-      problemSlug: expected?.problemSlug,
+      problemKey: expected?.problemKey,
     });
   });
 
@@ -115,19 +115,19 @@ describe("dashboard progress helpers", () => {
         githubUsername: "ada",
         submissions: [
           submission({
-            problemSlug: "two-sum",
+            problemKey: "leetcode:1",
             sourceKey: "top-interview-easy",
             submissionKey: "1",
             submittedAt: "2024-01-06T00:00:00.000Z",
           }),
           submission({
-            problemSlug: "valid-parentheses",
+            problemKey: "leetcode:20",
             sourceKey: "top-interview-easy",
             submissionKey: "20",
             submittedAt: "2024-01-02T00:00:00.000Z",
           }),
           submission({
-            problemSlug: "merge-strings-alternately",
+            problemKey: "leetcode:1768",
             sourceKey: "leetcode-75",
             submissionKey: "1768",
             status: SubmissionStatus.REVIEWING,
@@ -143,7 +143,7 @@ describe("dashboard progress helpers", () => {
           submission({
             id: "grace:merge-sorted-array",
             userId: "grace",
-            problemSlug: "merge-sorted-array",
+            problemKey: "leetcode:88",
             sourceKey: "top-interview-150",
             submissionKey: "88",
             submittedAt: "2024-01-05T00:00:00.000Z",
@@ -151,7 +151,7 @@ describe("dashboard progress helpers", () => {
           submission({
             id: "grace:remove-duplicates-from-sorted-array",
             userId: "grace",
-            problemSlug: "remove-duplicates-from-sorted-array",
+            problemKey: "leetcode:26",
             sourceKey: "top-interview-150",
             submissionKey: "26",
             submittedAt: "2024-01-04T00:00:00.000Z",
@@ -159,7 +159,7 @@ describe("dashboard progress helpers", () => {
           submission({
             id: "grace:search-insert-position",
             userId: "grace",
-            problemSlug: "search-insert-position",
+            problemKey: "leetcode:35",
             sourceKey: "top-interview-easy",
             submissionKey: "35",
             submittedAt: "2024-01-03T00:00:00.000Z",
@@ -167,7 +167,7 @@ describe("dashboard progress helpers", () => {
           submission({
             id: "grace:plus-one",
             userId: "grace",
-            problemSlug: "plus-one",
+            problemKey: "leetcode:66",
             sourceKey: "top-interview-easy",
             submissionKey: "66",
             submittedAt: "2024-01-01T00:00:00.000Z",
@@ -180,18 +180,18 @@ describe("dashboard progress helpers", () => {
       expect.objectContaining({
         displayName: "Ada Lovelace",
         problemTitle: "Two Sum",
-        problemSlug: "two-sum",
+        problemKey: "leetcode:1",
         submittedAt: "2024-01-06T00:00:00.000Z",
       }),
       expect.objectContaining({
         displayName: "Grace Hopper",
         problemTitle: "Merge Sorted Array",
-        problemSlug: "merge-sorted-array",
+        problemKey: "leetcode:88",
         submittedAt: "2024-01-05T00:00:00.000Z",
       }),
-      expect.objectContaining({ problemSlug: "remove-duplicates-from-sorted-array" }),
-      expect.objectContaining({ problemSlug: "search-insert-position" }),
-      expect.objectContaining({ problemSlug: "valid-parentheses" }),
+      expect.objectContaining({ problemKey: "leetcode:26" }),
+      expect.objectContaining({ problemKey: "leetcode:35" }),
+      expect.objectContaining({ problemKey: "leetcode:20" }),
     ]);
   });
 });

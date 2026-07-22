@@ -44,7 +44,7 @@ export type RecentSolvedSubmission = {
   userId: string;
   displayName: string;
   githubUsername: string;
-  problemSlug: string;
+  problemKey: string;
   problemTitle: string;
   sourceKey: string;
   listTitle: string;
@@ -55,7 +55,7 @@ export type RecentSolvedSubmission = {
 export type FirstUnsolvedProblemTarget = {
   elementId: typeof FIRST_UNSOLVED_PROBLEM_ELEMENT_ID;
   listKey: string;
-  problemSlug: string;
+  problemKey: string;
 };
 
 type RecentSubmissionUser = Pick<User, "id" | "displayName" | "githubUsername"> & {
@@ -116,7 +116,7 @@ function summarizeList(list: CatalogList, submissions: Map<string, Submission>):
   let skipped = 0;
 
   for (const item of items) {
-    const submission = submissions.get(item.slug);
+    const submission = submissions.get(item.problemKey);
     if (!submission) {
       continue;
     }
@@ -147,7 +147,7 @@ export function buildRecentSolvedSubmissions(users: RecentSubmissionUser[], limi
       user.submissions
         .filter((submission) => submission.status === SubmissionStatus.SOLVED && submission.submittedAt)
         .map((submission) => {
-          const problem = getProblem(submission.problemSlug);
+          const problem = getProblem(submission.problemKey);
           const list = getList(submission.sourceKey);
 
           return {
@@ -155,7 +155,7 @@ export function buildRecentSolvedSubmissions(users: RecentSubmissionUser[], limi
             userId: user.id,
             displayName: user.displayName,
             githubUsername: user.githubUsername,
-            problemSlug: submission.problemSlug,
+            problemKey: submission.problemKey,
             problemTitle: problem.title,
             sourceKey: submission.sourceKey,
             listTitle: list.title,
@@ -177,7 +177,7 @@ function buildUserRow(
   user: User & { submissions: Submission[]; activity?: ActivityDay[] },
   endDate: Date | string = new Date(),
 ): UserDashboardRow {
-  const submissions = new Map(user.submissions.map((submission) => [submission.problemSlug, submission]));
+  const submissions = new Map(user.submissions.map((submission) => [submission.problemKey, submission]));
   const progress = catalog.lists.map((list) => summarizeList(list, submissions));
   const activity = user.activity ?? [];
   const activityCalendar = buildActivityCalendar(activity, 35, endDate);
@@ -277,13 +277,13 @@ export async function getUserDetail(userId: string) {
     return null;
   }
 
-  const submissions = new Map(user.submissions.map((submission) => [submission.problemSlug, submission]));
+  const submissions = new Map(user.submissions.map((submission) => [submission.problemKey, submission]));
   const lists = catalog.lists.map((list) => ({
     ...list,
     progress: summarizeList(list, submissions),
     items: getListProblems(list).map((item) => ({
       ...item,
-      submission: submissions.get(item.slug) ?? null,
+      submission: submissions.get(item.problemKey) ?? null,
     })),
   }));
   let firstUnsolvedProblemTarget: FirstUnsolvedProblemTarget | null = null;
@@ -297,7 +297,7 @@ export async function getUserDetail(userId: string) {
       firstUnsolvedProblemTarget = {
         elementId: FIRST_UNSOLVED_PROBLEM_ELEMENT_ID,
         listKey: list.key,
-        problemSlug: item.slug,
+        problemKey: item.problemKey,
       };
       break;
     }
@@ -324,7 +324,7 @@ export async function getListDetail(listKey: string) {
   const users = data.users.filter((user) => user.active);
 
   const usersWithProgress = users.map((user) => {
-    const submissions = new Map(user.submissions.map((submission) => [submission.problemSlug, submission]));
+    const submissions = new Map(user.submissions.map((submission) => [submission.problemKey, submission]));
     return {
       ...user,
       progress: summarizeList(list, submissions),
