@@ -19,10 +19,25 @@ This change keeps the review informational while publishing each file's result a
 ## Non-goals
 
 - Creating inline comments on GitHub diff lines.
+- Replacing the fixed `github-actions[bot]` GitHub identity with a GitHub App or personal bot account.
 - Reviewing `README.md`, `meta.json`, deleted files, renamed files, or unchanged solution files.
 - Running file reviews in parallel.
 - Combining multiple files into one model prompt or adding cross-file reasoning.
 - Making model findings block automatic merging.
+
+## Comment branding
+
+The human-facing review persona is `찰싹봇`. GitHub still records every managed comment as authored by `github-actions[bot]`; the workflow does not add GitHub App credentials or another account token.
+
+File and summary comments render a compact trusted header containing:
+
+- the `찰싹봇` name;
+- the selected red-devil coach mascot;
+- the reviewed file path or run summary title.
+
+The final mascot asset is stored at `public/chalsakbot.png`. Comment rendering builds an immutable image URL from the trusted repository name and checked-out base SHA, so old comments retain the image version used by their workflow run. The image is decorative and receives descriptive Korean alt text. If GitHub cannot load the image, the bot name and review content remain fully usable.
+
+The mascot is presentation-only. It is never included in the OpenCode prompt, model response, trust decision, or merge eligibility.
 
 ## Comment model
 
@@ -117,7 +132,7 @@ Failure comments contain only stable stage, reason, detail, retryability, option
 ### `scripts/opencode-review-core.mjs`
 
 - Add stable file-marker generation.
-- Render Korean file review comments, per-file warnings, and the compact final summary.
+- Render branded Korean file review comments, per-file warnings, and the compact final summary.
 - Retain Markdown sanitization, source redaction support, and comment-length bounds.
 
 ### `scripts/opencode-review-clients.mjs`
@@ -136,6 +151,11 @@ Failure comments contain only stable stage, reason, detail, retryability, option
 - Reconcile stale managed file comments only after the current target set is known and every target has been attempted.
 - Publish the final managed summary and complete the check.
 
+### `public/chalsakbot.png`
+
+- Store the approved square `찰싹봇` mascot image as a project asset.
+- Use the trusted base SHA when constructing the image URL embedded in GitHub comments.
+
 ## Testing
 
 Tests must cover:
@@ -148,6 +168,8 @@ Tests must cover:
 - user-authored marker spoof comments remaining untouched;
 - stale bot-authored file comments being deleted only after successful trusted-scope discovery;
 - the legacy aggregate comment becoming the summary comment;
+- `찰싹봇` name, Korean alt text, trusted base-SHA image URL, and graceful text-only fallback;
+- no new GitHub App, PAT, or elevated workflow permission being introduced;
 - Korean headings and Korean-only prose instructions in the model prompt;
 - source identifiers and Big-O notation being allowed unchanged;
 - Markdown sanitization, source redaction, mention/link neutralization, and per-comment truncation;
@@ -164,4 +186,5 @@ Tests must cover:
 - Workflow reruns update existing file comments and the existing summary comment without creating duplicates.
 - Comments for solution paths no longer present in the current review target set are removed safely.
 - OpenCode review prose and headings are requested in Korean.
+- File and summary comments display the `찰싹봇` name and approved mascot while remaining authored by `github-actions[bot]`.
 - Review findings and per-file service warnings remain informational, while untrusted or incomplete PR snapshots remain merge-blocking.
