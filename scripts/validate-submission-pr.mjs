@@ -47,10 +47,9 @@ function parseNameStatusText(raw) {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const tabIndex = line.indexOf("\t");
-      if (tabIndex > 0) {
-        const status = line.slice(0, tabIndex);
-        const filePath = normalizeRepoPath(line.slice(tabIndex + 1));
+      const [status, sourcePath, destinationPath] = line.split("\t");
+      if (sourcePath) {
+        const filePath = normalizeRepoPath(/^[RC]/.test(status) && destinationPath ? destinationPath : sourcePath);
         return { status, path: filePath };
       }
 
@@ -61,8 +60,12 @@ function parseNameStatusText(raw) {
 function parseNameStatusNul(raw) {
   const parts = raw.split("\0").filter(Boolean);
   const files = [];
-  for (let index = 0; index < parts.length; index += 2) {
-    files.push({ status: parts[index], path: normalizeRepoPath(parts[index + 1] ?? "") });
+  for (let index = 0; index < parts.length;) {
+    const status = parts[index] ?? "";
+    const isRenameOrCopy = /^[RC]/.test(status);
+    const filePath = isRenameOrCopy ? parts[index + 2] : parts[index + 1];
+    files.push({ status, path: normalizeRepoPath(filePath ?? "") });
+    index += isRenameOrCopy ? 3 : 2;
   }
   return files.filter((file) => file.path);
 }
@@ -76,7 +79,7 @@ function getChangedFiles({ base, head, changedFilesPath }) {
     throw new Error("Pass --base/--head or --changed-files.");
   }
 
-  const raw = execFileSync("git", ["diff", "--name-status", "--no-renames", "-z", `${base}...${head}`], {
+  const raw = execFileSync("git", ["diff", "--name-status", "-z", `${base}...${head}`], {
     encoding: "utf8",
     maxBuffer: 1024 * 1024,
   });
@@ -176,7 +179,12 @@ function isParticipantSubmissionPath(filePath) {
 }
 
 function isAllowedSubmissionStatus(status) {
-  return status === "A" || status === "M" || status === "added" || status === "modified";
+  return status === "A"
+    || status === "M"
+    || status.startsWith("R")
+    || status === "added"
+    || status === "modified"
+    || status === "renamed";
 }
 
 function validateMeta(filePath, errors) {
@@ -231,7 +239,7 @@ function validateSubmissionFiles(changedFiles, options = {}) {
     }
 
     if (!isAllowedSubmissionStatus(changedFile.status)) {
-      errors.push(`${filePath}: submission-only PRs may add or update files, not delete them or rename them.`);
+      errors.push(`${filePath}: submission-only PRs may add, update, or rename files, not delete them.`);
       continue;
     }
 

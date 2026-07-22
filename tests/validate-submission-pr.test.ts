@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rename, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -138,7 +138,7 @@ describe("validate-submission-pr", () => {
     const repo = await createRepoFixture();
 
     await expect(runValidator(repo, "D\tsubmissions/ada/top-interview-easy/1/Solution.java\n")).rejects.toMatchObject({
-      stderr: expect.stringContaining("may add or update files, not delete them"),
+      stderr: expect.stringContaining("may add, update, or rename files, not delete them"),
       githubOutput: "submission_only=true\n",
     });
   });
@@ -176,6 +176,31 @@ describe("validate-submission-pr", () => {
       stderr: expect.stringContaining("pull request author unknown is not registered in data/users.json"),
       githubOutput: "submission_only=true\n",
     });
+  });
+
+  it("accepts a valid submission filename rename", async () => {
+    const repo = await createRepoFixture();
+    const problemDir = path.join(repo, "submissions", "ada", "top-interview-easy", "1");
+    await rename(path.join(problemDir, "Solution.java"), path.join(problemDir, "solution.jvaa"));
+    await git(repo, ["init"]);
+    await git(repo, ["config", "user.email", "test@example.com"]);
+    await git(repo, ["config", "user.name", "Test User"]);
+    await git(repo, ["add", "."]);
+    await git(repo, ["commit", "-m", "initial"]);
+    const base = await git(repo, ["rev-parse", "HEAD"]);
+
+    await git(repo, ["mv", "submissions/ada/top-interview-easy/1/solution.jvaa", "submissions/ada/top-interview-easy/1/Solution.java"]);
+    await git(repo, ["commit", "-m", "fix submission filename"]);
+    const head = await git(repo, ["rev-parse", "HEAD"]);
+
+    const outputPath = path.join(repo, "github-output.txt");
+    const result = await execFileAsync(process.execPath, [scriptPath, "--base", base, "--head", head, "--author", "ada"], {
+      cwd: repo,
+      env: { ...process.env, GITHUB_OUTPUT: outputPath },
+    });
+
+    expect(result.stdout).toContain("submission_only=true");
+    expect(await readFile(outputPath, "utf8")).toBe("submission_only=true\n");
   });
 
   it("detects submission-only changes from the merge base when the pull request branch is stale", async () => {
