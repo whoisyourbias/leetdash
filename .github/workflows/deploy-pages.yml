@@ -19,6 +19,8 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    outputs:
+      submission_only: ${{ steps.pr-scope.outputs.submission_only }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -78,6 +80,33 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: out
+
+  review-submission:
+    name: OpenCode submission review
+    if: github.event_name == 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Run OpenCode review
+        run: |
+          node scripts/opencode-review.mjs \
+            --base "${{ github.event.pull_request.base.sha }}" \
+            --head "${{ github.event.pull_request.head.sha }}" \
+            --pull-number "${{ github.event.pull_request.number }}" \
+            --submission-only "${{ needs.validate.outputs.submission_only }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          OPENCODE_REVIEW_MODEL: ${{ vars.OPENCODE_REVIEW_MODEL }}
 
   deploy:
     if: github.event_name != 'pull_request'
