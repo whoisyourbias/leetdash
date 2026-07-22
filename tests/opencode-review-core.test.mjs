@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildMascotUrl,
   buildReviewPrompt,
   parseSubmissionSolutionPath,
+  parseManagedReviewMarker,
+  renderReviewFileComment,
+  renderReviewFileWarning,
   renderReviewComment,
+  renderReviewSummary,
   renderReviewWarning,
   ReviewFailure,
+  reviewFileKey,
+  reviewFileMarker,
   sanitizeReviewMarkdown,
 } from "../scripts/opencode-review-core.mjs";
 
@@ -54,8 +61,15 @@ describe("review prompt", () => {
     expect(prompt).toContain("language: java");
     expect(prompt).toContain("class Solution {}");
     expect(prompt).toContain("Return Markdown only");
-    expect(prompt).toContain("#### Possible risks");
-    expect(prompt).toContain("#### Complexity");
+    expect(prompt).toContain("리뷰의 모든 설명과 제안은 자연스러운 한국어로 작성하세요.");
+    expect(prompt).toContain("코드 식별자, 경로, 언어 키워드, API 이름, Big-O 표기는 정확성을 위해 원문을 유지할 수 있습니다.");
+    expect(prompt).toContain("#### 요약");
+    expect(prompt).toContain("#### 잠재적 위험");
+    expect(prompt).toContain("#### 복잡도");
+    expect(prompt).toContain("#### 가독성");
+    expect(prompt).toContain("제출 코드만으로 확인된 사항 없음.");
+    expect(prompt).not.toContain("#### Summary");
+    expect(prompt).not.toContain("None observed from the submitted code alone.");
     expect(prompt).not.toContain("schema_version");
     expect(prompt).toContain("Do not return JSON");
     expect(prompt).not.toContain("REQUIRED JSON SHAPE");
@@ -63,6 +77,75 @@ describe("review prompt", () => {
     for (const forbidden of ["problem statement", "judge metadata", "official template", "leetcode_id", "title_slug"]) {
       expect(prompt.toLowerCase()).not.toContain(forbidden);
     }
+  });
+});
+
+describe("managed review markers and branding", () => {
+  it("creates stable, path-specific file markers and parses only leading managed markers", () => {
+    const firstMarker = reviewFileMarker(reviewPath);
+    const secondMarker = reviewFileMarker("submissions/ada/programmers/12907/solution.java");
+
+    expect(firstMarker).toMatch(/^<!-- leetdash-opencode-review-file:[a-f0-9]{64} -->$/);
+    expect(firstMarker).not.toBe(secondMarker);
+    expect(reviewFileMarker(reviewPath)).toBe(firstMarker);
+    expect(parseManagedReviewMarker(`${firstMarker}\nbody`)).toEqual({ kind: "file", key: reviewFileKey(reviewPath) });
+    expect(parseManagedReviewMarker("<!-- leetdash-opencode-review -->\nbody")).toEqual({ kind: "summary" });
+    expect(parseManagedReviewMarker(`prefix ${firstMarker}`)).toBeUndefined();
+  });
+
+  it("builds an immutable mascot URL from trusted repository identity", () => {
+    const baseSha = "a".repeat(40);
+
+    expect(buildMascotUrl({
+      serverUrl: "https://github.com/",
+      repository: "whoisyourbias/leetdash",
+      baseSha,
+    })).toBe(`https://github.com/whoisyourbias/leetdash/raw/${baseSha}/public/chalsakbot.png`);
+  });
+
+  it("renders branded file, warning, and summary comments", () => {
+    const mascotUrl = `https://github.com/example/leetdash/raw/${"a".repeat(40)}/public/chalsakbot.png`;
+    const shared = {
+      path: reviewPath,
+      headSha: "head-sha-123",
+      runUrl: "https://github.com/example/leetdash/actions/runs/42",
+      mascotUrl,
+    };
+    const fileBody = renderReviewFileComment({ ...shared, markdown: "#### 요약\n읽기 쉬운 반복문입니다." });
+
+    expect(fileBody.startsWith(`${reviewFileMarker(reviewPath)}\n`)).toBe(true);
+    expect(fileBody).toContain("찰싹봇의 코드 리뷰");
+    expect(fileBody).toContain('alt="찰싹봇 캐릭터"');
+    expect(fileBody).toContain(mascotUrl);
+    expect(fileBody).toContain(reviewPath);
+    expect(fileBody).toContain("#### 요약");
+
+    const warningBody = renderReviewFileWarning({
+      ...shared,
+      failure: new ReviewFailure({
+        stage: "model-request",
+        reason: "MODEL_REQUEST_FAILED",
+        detail: "OpenCode request failed.",
+        retryable: true,
+      }),
+    });
+    expect(warningBody.startsWith(`${reviewFileMarker(reviewPath)}\n`)).toBe(true);
+    expect(warningBody).toContain("찰싹봇 리뷰 경고");
+    expect(warningBody).toContain("재시도 가능: 예");
+
+    const summary = renderReviewSummary({
+      headSha: "head-sha-123",
+      runUrl: shared.runUrl,
+      mascotUrl,
+      reviewedCount: 2,
+      warningCount: 1,
+      deliveryFailureCount: 0,
+    });
+    expect(summary.startsWith("<!-- leetdash-opencode-review -->\n")).toBe(true);
+    expect(summary).toContain("찰싹봇 리뷰 요약");
+    expect(summary).toContain("리뷰 완료: 2개");
+    expect(summary).toContain("리뷰 경고: 1개");
+    expect(summary).toContain("댓글 전달 실패: 0개");
   });
 });
 
