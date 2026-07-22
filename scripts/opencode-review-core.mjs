@@ -52,11 +52,11 @@ function problemFailure(detail) {
   });
 }
 
-function modelResponseFailure() {
+function modelResponseFailure(field, issue) {
   return new ReviewFailure({
     stage: "model-response",
     reason: "MODEL_RESPONSE_INVALID",
-    detail: modelResponseDetail,
+    detail: `${modelResponseDetail} Diagnostic: field=${field}; issue=${issue}.`,
   });
 }
 
@@ -234,53 +234,53 @@ function isObject(value) {
   return value !== null && !Array.isArray(value) && typeof value === "object";
 }
 
-function assertExactKeys(value, keys) {
-  if (!isObject(value)) throw modelResponseFailure();
+function assertExactKeys(value, keys, field) {
+  if (!isObject(value)) throw modelResponseFailure(field, "object");
   const actualKeys = Object.keys(value);
   if (actualKeys.length !== keys.length || actualKeys.some((key) => !keys.includes(key))) {
-    throw modelResponseFailure();
+    throw modelResponseFailure(field, "object-shape");
   }
 }
 
-function assertString(value) {
-  if (!hasText(value)) throw modelResponseFailure();
+function assertString(value, field) {
+  if (!hasText(value)) throw modelResponseFailure(field, "non-empty-string");
 }
 
-function assertEnum(value, allowed) {
-  if (!allowed.has(value)) throw modelResponseFailure();
+function assertEnum(value, allowed, field) {
+  if (!allowed.has(value)) throw modelResponseFailure(field, "enum");
 }
 
-function assertStringOrNull(value) {
-  if (value !== null && !hasText(value)) throw modelResponseFailure();
+function assertStringOrNull(value, field) {
+  if (value !== null && !hasText(value)) throw modelResponseFailure(field, "string-or-null");
 }
 
 function assertCounterexample(value) {
-  assertExactKeys(value, ["input", "expected", "actual"]);
-  assertStringOrNull(value.input);
-  assertStringOrNull(value.expected);
-  assertStringOrNull(value.actual);
+  assertExactKeys(value, ["input", "expected", "actual"], "blocking_findings[].counterexample");
+  assertStringOrNull(value.input, "blocking_findings[].counterexample.input");
+  assertStringOrNull(value.expected, "blocking_findings[].counterexample.expected");
+  assertStringOrNull(value.actual, "blocking_findings[].counterexample.actual");
   const values = [value.input, value.expected, value.actual];
   if (values.some((item) => item === null) && values.some((item) => item !== null)) {
-    throw modelResponseFailure();
+    throw modelResponseFailure("blocking_findings[].counterexample", "all-null-or-all-text");
   }
 }
 
 function assertBlockingFinding(value) {
-  assertExactKeys(value, ["category", "reason", "evidence", "counterexample"]);
-  assertEnum(value.category, blockingCategories);
-  assertString(value.reason);
-  assertString(value.evidence);
+  assertExactKeys(value, ["category", "reason", "evidence", "counterexample"], "blocking_findings[]");
+  assertEnum(value.category, blockingCategories, "blocking_findings[].category");
+  assertString(value.reason, "blocking_findings[].reason");
+  assertString(value.evidence, "blocking_findings[].evidence");
   assertCounterexample(value.counterexample);
 }
 
 function assertSuggestion(value) {
-  assertExactKeys(value, ["category", "suggestion"]);
-  assertEnum(value.category, suggestionCategories);
-  assertString(value.suggestion);
+  assertExactKeys(value, ["category", "suggestion"], "non_blocking_suggestions[]");
+  assertEnum(value.category, suggestionCategories, "non_blocking_suggestions[].category");
+  assertString(value.suggestion, "non_blocking_suggestions[].suggestion");
 }
 
-function assertArray(value, validator) {
-  if (!Array.isArray(value)) throw modelResponseFailure();
+function assertArray(value, validator, field) {
+  if (!Array.isArray(value)) throw modelResponseFailure(field, "array");
   value.forEach(validator);
 }
 
@@ -297,7 +297,7 @@ function parseReviewResult(raw, expectedPath) {
   try {
     result = JSON.parse(raw);
   } catch {
-    throw modelResponseFailure();
+    throw modelResponseFailure("response", "json-parse");
   }
 
   assertExactKeys(result, [
@@ -309,24 +309,26 @@ function parseReviewResult(raw, expectedPath) {
     "complexity",
     "blocking_findings",
     "non_blocking_suggestions",
-  ]);
-  if (result.schema_version !== 1) throw modelResponseFailure();
-  assertEnum(result.verdict, new Set(["PASS", "FAIL"]));
-  assertString(result.path);
-  assertString(result.summary);
+  ], "response");
+  if (result.schema_version !== 1) throw modelResponseFailure("schema_version", "value");
+  assertEnum(result.verdict, new Set(["PASS", "FAIL"]), "verdict");
+  assertString(result.path, "path");
+  assertString(result.summary, "summary");
 
-  assertExactKeys(result.correctness, ["status", "reason"]);
-  assertEnum(result.correctness.status, new Set(["PASS", "FAIL"]));
-  assertString(result.correctness.reason);
+  assertExactKeys(result.correctness, ["status", "reason"], "correctness");
+  assertEnum(result.correctness.status, new Set(["PASS", "FAIL"]), "correctness.status");
+  assertString(result.correctness.reason, "correctness.reason");
 
-  assertExactKeys(result.complexity, ["time", "space", "acceptable", "reason"]);
-  assertString(result.complexity.time);
-  assertString(result.complexity.space);
-  if (typeof result.complexity.acceptable !== "boolean") throw modelResponseFailure();
-  assertString(result.complexity.reason);
+  assertExactKeys(result.complexity, ["time", "space", "acceptable", "reason"], "complexity");
+  assertString(result.complexity.time, "complexity.time");
+  assertString(result.complexity.space, "complexity.space");
+  if (typeof result.complexity.acceptable !== "boolean") {
+    throw modelResponseFailure("complexity.acceptable", "boolean");
+  }
+  assertString(result.complexity.reason, "complexity.reason");
 
-  assertArray(result.blocking_findings, assertBlockingFinding);
-  assertArray(result.non_blocking_suggestions, assertSuggestion);
+  assertArray(result.blocking_findings, assertBlockingFinding, "blocking_findings");
+  assertArray(result.non_blocking_suggestions, assertSuggestion, "non_blocking_suggestions");
   const hasNonComplexityFinding = result.blocking_findings.some((finding) => finding.category !== "complexity");
   const hasComplexityFinding = result.blocking_findings.some((finding) => finding.category === "complexity");
 

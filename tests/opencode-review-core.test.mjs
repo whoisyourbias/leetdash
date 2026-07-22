@@ -159,6 +159,25 @@ describe("review result parsing", () => {
     );
   });
 
+  it.each([
+    ["invalid JSON", () => "not json", "field=response; issue=json-parse"],
+    ["top-level shape", () => JSON.stringify({ ...passResult, unexpected: "model-secret" }), "field=response; issue=object-shape"],
+    ["boolean type", () => JSON.stringify({ ...passResult, complexity: { ...passResult.complexity, acceptable: "yes" } }), "field=complexity.acceptable; issue=boolean"],
+    ["blocking category", () => JSON.stringify({ ...failResult, blocking_findings: [{ ...failResult.blocking_findings[0], category: "model-secret" }] }), "field=blocking_findings[].category; issue=enum"],
+  ])("reports a sanitized diagnostic for %s", (_name, raw, diagnostic) => {
+    try {
+      parseReviewResult(raw(), reviewPath);
+      throw new Error("expected parsing to fail");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ReviewFailure);
+      expect(error.detail).toContain(diagnostic);
+      expect(error.detail).not.toContain("model-secret");
+      const markdown = renderInfrastructureFailure({ headSha: "abc123", failure: error, runUrl: "https://example.test/run" });
+      expect(markdown).toContain(diagnostic);
+      expect(markdown).not.toContain("model-secret");
+    }
+  });
+
   it("does not expose model content in failures", () => {
     const secret = "model-only-secret";
     try {
