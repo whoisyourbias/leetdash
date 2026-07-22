@@ -142,6 +142,7 @@ describe("managed review markers and branding", () => {
   });
 
   it.each([
+    { serverUrl: "not a URL" },
     { serverUrl: "http://github.example" },
     { serverUrl: "https://user:pass@github.example" },
     { repository: "owner/repo/extra" },

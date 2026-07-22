@@ -276,6 +276,25 @@ describe("reviewPullRequest", () => {
     expect(completed.at(-1)).toMatchObject({ conclusion: "success" });
   });
 
+  it("turns invalid source permalink configuration into a sanitized file warning", async () => {
+    const { options, comments, completed } = reviewOptions({ serverUrl: "http://github.example" });
+
+    const result = await reviewPullRequest(options);
+
+    expect(result.results).toMatchObject([{
+      path: firstPath,
+      status: "warning",
+      failure: {
+        stage: "catalog-resolve",
+        reason: "CATALOG_MAPPING_FAILED",
+        detail: "Review source link configuration is invalid.",
+      },
+    }]);
+    expect(comments[0].body).toContain("찰싹봇 리뷰 경고");
+    expect(comments[0].body).not.toContain("http://github.example");
+    expect(completed.at(-1)).toMatchObject({ conclusion: "success" });
+  });
+
   it("continues after one file comment delivery fails and reports only a sanitized count", async () => {
     const reviewCalls = [];
     const delivered = [];
