@@ -7,7 +7,6 @@ import {
   parseManagedReviewMarker,
   renderReviewFileComment,
   renderReviewFileWarning,
-  renderReviewComment,
   renderReviewSummary,
   renderReviewWarning,
   ReviewFailure,
@@ -163,35 +162,41 @@ describe("review Markdown rendering", () => {
   });
 
   it("embeds model Markdown directly under each trusted submission path", () => {
-    const markdown = renderReviewComment({
+    const markdown = renderReviewFileComment({
+      mascotUrl: "https://github.com/example/leetdash/raw/abc1234/public/chalsakbot.png",
       headSha: "abc123",
-      results: [{ path: reviewPath, markdown: reviewMarkdown }],
+      path: reviewPath,
+      markdown: reviewMarkdown,
       runUrl: "https://github.com/example/leetdash/actions/runs/42",
     });
 
-    expect(markdown.startsWith("<!-- leetdash-opencode-review -->")).toBe(true);
-    expect(markdown).toContain("Commit: abc123");
-    expect(markdown).toContain(`### ${reviewPath}`);
-    expect(markdown).toContain(reviewMarkdown.split("\n").map((line) => `> ${line}`).join("\n"));
+    expect(markdown.startsWith(reviewFileMarker(reviewPath))).toBe(true);
+    expect(markdown).toContain("커밋: abc123");
+    expect(markdown).toContain(`파일: ${reviewPath}`);
+    expect(markdown).toContain(reviewMarkdown);
   });
 
   it("escapes trusted framing values without escaping model Markdown", () => {
-    const markdown = renderReviewComment({
+    const markdown = renderReviewFileComment({
+      mascotUrl: "https://github.com/example/leetdash/raw/abc1234/public/chalsakbot.png",
       headSha: "abc\n123|def",
-      results: [{ path: "submissions/ada/<script>/1/solution.ts", markdown: "#### Summary\n**Readable** & direct." }],
+      path: "submissions/ada/<script>/1/solution.ts",
+      markdown: "#### Summary\n**Readable** & direct.",
       runUrl: "https://example.test/run\n42|x",
     });
 
     expect(markdown).toContain("abc 123\\|def");
     expect(markdown).toContain("submissions/ada/&lt;script&gt;/1/solution.ts");
-    expect(markdown).toContain("> #### Summary\n> **Readable** & direct.");
+    expect(markdown).toContain("#### Summary\n**Readable** & direct.");
     expect(markdown).toContain("https://example.test/run 42\\|x");
   });
 
   it("keeps the managed comment below GitHub size limits", () => {
-    const markdown = renderReviewComment({
+    const markdown = renderReviewFileComment({
+      mascotUrl: "https://github.com/example/leetdash/raw/abc1234/public/chalsakbot.png",
       headSha: "abc123",
-      results: [{ path: reviewPath, markdown: `#### Summary\n${"x".repeat(70_000)}` }],
+      path: reviewPath,
+      markdown: `#### Summary\n${"x".repeat(70_000)}`,
       runUrl: "https://github.com/example/leetdash/actions/runs/42",
     });
 
@@ -202,6 +207,7 @@ describe("review Markdown rendering", () => {
   it("renders a marked, sanitized informational warning", () => {
     const markdown = renderReviewWarning({
       headSha: "abc123",
+      mascotUrl: "https://github.com/example/leetdash/raw/abc1234/public/chalsakbot.png",
       failure: new ReviewFailure({
         stage: "model-request",
         reason: "MODEL_REQUEST_FAILED",
@@ -213,12 +219,13 @@ describe("review Markdown rendering", () => {
       runUrl: "https://github.com/example/leetdash/actions/runs/42",
     });
 
-    expect(markdown).toContain("<!-- leetdash-opencode-review -->\n## OpenCode review warning");
-    expect(markdown).toContain("Stage: model-request");
-    expect(markdown).toContain("Reason: MODEL_REQUEST_FAILED");
-    expect(markdown).toContain("Detail: OpenCode request failed.");
-    expect(markdown).toContain("Retryable: yes");
-    expect(markdown).toContain("HTTP status: 429");
-    expect(markdown).toContain("Request ID: request-42");
+    expect(markdown).toContain("<!-- leetdash-opencode-review -->\n<img");
+    expect(markdown).toContain("## 찰싹봇 리뷰 경고");
+    expect(markdown).toContain("단계: model-request");
+    expect(markdown).toContain("사유: MODEL_REQUEST_FAILED");
+    expect(markdown).toContain("상세: OpenCode request failed.");
+    expect(markdown).toContain("재시도 가능: 예");
+    expect(markdown).toContain("HTTP 상태: 429");
+    expect(markdown).toContain("요청 ID: request-42");
   });
 });

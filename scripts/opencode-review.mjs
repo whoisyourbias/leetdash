@@ -4,10 +4,14 @@ import { fileURLToPath } from "node:url";
 
 import {
   ReviewFailure,
+  buildMascotUrl,
   buildReviewPrompt,
   parseSubmissionSolutionPath,
-  renderReviewComment,
+  renderReviewFileComment,
+  renderReviewFileWarning,
+  renderReviewSummary,
   renderReviewWarning,
+  reviewFileKey,
   sanitizeReviewMarkdown,
 } from "./opencode-review-core.mjs";
 import { GitHubReviewClient, OpenCodeClient } from "./opencode-review-clients.mjs";
@@ -164,16 +168,6 @@ async function defaultUsersLoader() {
   return JSON.parse(await readFile(path.join(process.cwd(), "data", "users.json"), "utf8"));
 }
 
-function noSolutionsMarkdown({ headSha, runUrl }) {
-  return [
-    "<!-- leetdash-opencode-review -->",
-    "## OpenCode submission review",
-    `Commit: ${headSha}`,
-    "No changed solution.* files require review.",
-    `Workflow URL: ${runUrl}`,
-  ].join("\n");
-}
-
 function notApplicableMarkdown() {
   return "OpenCode submission review is not applicable to this pull request.";
 }
@@ -225,6 +219,32 @@ function redactModelText(value, source) {
   return value.split(source).join("[submitted source redacted]");
 }
 
+async function reviewOneFile({ file, readSource, openCodeClient, model, apiKey }) {
+  let stage = "path-parse";
+  let filePath = file.path;
+  try {
+    const parsed = parseSubmissionSolutionPath(file.path);
+    filePath = parsed.path;
+    stage = "source-read";
+    const source = await readSource(parsed.path);
+    const prompt = buildReviewPrompt({ path: parsed.path, language: parsed.extension, source });
+    stage = "model-request";
+    const raw = await openCodeClient.review({ model, apiKey, prompt });
+    stage = "model-response";
+    return {
+      path: filePath,
+      status: "reviewed",
+      markdown: sanitizeReviewMarkdown(redactModelText(raw, source)),
+    };
+  } catch (error) {
+    return {
+      path: filePath,
+      status: "warning",
+      failure: error instanceof ReviewFailure ? error : failureForStage(stage),
+    };
+  }
+}
+
 async function reviewPullRequest({
   githubClient,
   openCodeClient,
@@ -237,6 +257,7 @@ async function reviewPullRequest({
   runUrl,
   apiKey,
   model,
+  mascotUrl,
   summaryPath,
   submissionOnly,
 }) {
@@ -252,6 +273,21 @@ async function reviewPullRequest({
   let conclusion = "success";
   let activeSubmissionOnly = false;
   let trustedScopeValidated = typeof submissionOnly === "boolean";
+  let managedComments = [];
+  let managedCommentsLoaded = false;
+  let commentDiscoveryAvailable = true;
+  let deliveryFailureCount = 0;
+
+  const loadManagedComments = async () => {
+    if (managedCommentsLoaded) return;
+    managedCommentsLoaded = true;
+    try {
+      managedComments = await githubClient.listManagedReviewComments(pullNumber);
+    } catch {
+      managedComments = [];
+      commentDiscoveryAvailable = false;
+    }
+  };
 
   try {
     let activeChangedFiles = changedFiles;
@@ -291,37 +327,88 @@ async function reviewPullRequest({
         }
         return isReviewableSolution(file);
       });
-      if (paths.length === 0) {
-        markdown = noSolutionsMarkdown({ headSha, runUrl });
-      } else {
-        for (const file of paths) {
-          stage = "path-parse";
-          const parsed = parseSubmissionSolutionPath(file.path);
-          stage = "source-read";
-          const source = await readSource(parsed.path);
-          const prompt = buildReviewPrompt({ path: parsed.path, language: parsed.extension, source });
-          stage = "model-request";
-          const raw = await openCodeClient.review({ model, apiKey, prompt });
-          stage = "model-response";
-          results.push({
-            path: parsed.path,
-            markdown: sanitizeReviewMarkdown(redactModelText(raw, source)),
-          });
+      await loadManagedComments();
+      const summaryComment = managedComments.find((comment) => comment.kind === "summary");
+      const fileComments = new Map(
+        managedComments
+          .filter((comment) => comment.kind === "file")
+          .map((comment) => [comment.key, comment]),
+      );
+
+      for (const file of paths) {
+        const result = await reviewOneFile({ file, readSource, openCodeClient, model, apiKey });
+        results.push(result);
+        const body = result.status === "reviewed"
+          ? renderReviewFileComment({ path: result.path, headSha, runUrl, mascotUrl, markdown: result.markdown })
+          : renderReviewFileWarning({ path: result.path, headSha, runUrl, mascotUrl, failure: result.failure });
+        if (!commentDiscoveryAvailable) {
+          deliveryFailureCount += 1;
+          continue;
         }
-        markdown = renderReviewComment({ headSha, results, runUrl });
+        try {
+          await githubClient.upsertReviewComment({
+            pullNumber,
+            commentId: fileComments.get(reviewFileKey(result.path))?.id,
+            body,
+          });
+        } catch {
+          deliveryFailureCount += 1;
+        }
+      }
+
+      if (commentDiscoveryAvailable) {
+        const currentKeys = new Set(paths.map((file) => reviewFileKey(file.path)));
+        for (const comment of managedComments) {
+          if (comment.kind !== "file" || currentKeys.has(comment.key)) continue;
+          try {
+            await githubClient.deleteReviewComment(comment.id);
+          } catch {
+            deliveryFailureCount += 1;
+          }
+        }
+      }
+
+      const reviewedCount = results.filter((result) => result.status === "reviewed").length;
+      const warningCount = results.filter((result) => result.status === "warning").length;
+      const summaryArgs = {
+        headSha,
+        runUrl,
+        mascotUrl,
+        reviewedCount,
+        warningCount,
+        deliveryFailureCount,
+        ...(paths.length === 0 ? { message: "변경된 solution.* 파일이 없어 리뷰를 생략했습니다." } : {}),
+      };
+      markdown = renderReviewSummary(summaryArgs);
+      if (commentDiscoveryAvailable) {
+        try {
+          await githubClient.upsertReviewComment({ pullNumber, commentId: summaryComment?.id, body: markdown });
+        } catch {
+          deliveryFailureCount += 1;
+          markdown = renderReviewSummary({ ...summaryArgs, deliveryFailureCount });
+        }
+      } else {
+        deliveryFailureCount += 1;
+        markdown = renderReviewSummary({ ...summaryArgs, deliveryFailureCount });
       }
     }
   } catch (error) {
     failure = error instanceof ReviewFailure ? error : failureForStage(stage);
     conclusion = trustedScopeValidated ? "success" : "failure";
-    markdown = renderReviewWarning({ headSha, failure, runUrl });
+    markdown = renderReviewWarning({ headSha, failure, runUrl, mascotUrl });
   }
 
   let summary = markdown;
-  if (activeSubmissionOnly || failure) {
-    try {
-      await githubClient.upsertReviewComment({ pullNumber, body: markdown });
-    } catch {
+  if (failure) {
+    await loadManagedComments();
+    if (commentDiscoveryAvailable) {
+      const summaryComment = managedComments.find((comment) => comment.kind === "summary");
+      try {
+        await githubClient.upsertReviewComment({ pullNumber, commentId: summaryComment?.id, body: markdown });
+      } catch {
+        summary = `${markdown}\n\n${deliveryDiagnostic}`;
+      }
+    } else {
       summary = `${markdown}\n\n${deliveryDiagnostic}`;
     }
   }
@@ -336,7 +423,13 @@ async function reviewPullRequest({
     title: conclusion === "success" ? "OpenCode review passed" : "OpenCode review failed",
     summary,
   });
-  return { results, conclusion, markdown, ...(failure ? { failure } : {}) };
+  return {
+    results,
+    failures: results.filter((result) => result.status === "warning").map((result) => result.failure),
+    conclusion,
+    markdown,
+    ...(failure ? { failure } : {}),
+  };
 }
 
 function parseArgs(argv) {
@@ -382,6 +475,11 @@ async function main(options = {}) {
   }
 
   const runUrl = `${env.GITHUB_SERVER_URL.replace(/\/$/, "")}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}`;
+  const mascotUrl = options.mascotUrl ?? buildMascotUrl({
+    serverUrl: env.GITHUB_SERVER_URL,
+    repository: env.GITHUB_REPOSITORY,
+    baseSha: args.base,
+  });
   const githubClient = options.githubClient ?? new GitHubReviewClient({ repository: env.GITHUB_REPOSITORY, token: env.GITHUB_TOKEN });
   let trustedCatalog = options.catalog;
   let trustedUsers = options.users;
@@ -421,6 +519,7 @@ async function main(options = {}) {
     runUrl,
     apiKey: env.OPENCODE_API_KEY,
     model: env.OPENCODE_REVIEW_MODEL,
+    mascotUrl,
     summaryPath: options.summaryPath ?? env.GITHUB_STEP_SUMMARY,
   });
   return { exitCode: result.conclusion === "failure" ? 1 : 0, result };

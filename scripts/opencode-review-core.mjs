@@ -210,40 +210,14 @@ function renderReviewSummary({
   ].join("\n"));
 }
 
-function renderReviewComment({ headSha, results, runUrl }) {
-  const lines = [
-    "<!-- leetdash-opencode-review -->",
-    "## OpenCode submission review",
-    `Commit: ${markdownText(headSha)}`,
-    `Workflow URL: ${markdownText(runUrl)}`,
-  ];
-
-  results.forEach((result) => {
-    const quotedMarkdown = result.markdown.split("\n").map((line) => `> ${line}`).join("\n");
-    lines.push(
-      "",
-      `### ${markdownText(result.path)}`,
-      quotedMarkdown,
-    );
-  });
-
-  return limitComment(lines.join("\n"));
-}
-
-function renderReviewWarning({ headSha, failure, runUrl }) {
-  const lines = [
-    "<!-- leetdash-opencode-review -->",
-    "## OpenCode review warning",
-    `Commit: ${markdownText(headSha)}`,
-    `Stage: ${markdownText(failure.stage)}`,
-    `Reason: ${markdownText(failure.reason)}`,
-    `Detail: ${markdownText(failure.detail)}`,
-    `Retryable: ${failure.retryable ? "yes" : "no"}`,
-  ];
-  if (failure.httpStatus !== undefined) lines.push(`HTTP status: ${markdownText(failure.httpStatus)}`);
-  if (failure.requestId !== undefined) lines.push(`Request ID: ${markdownText(failure.requestId)}`);
-  lines.push(`Workflow URL: ${markdownText(runUrl)}`);
-  return lines.join("\n");
+function renderReviewWarning({ headSha, failure, runUrl, mascotUrl }) {
+  return limitComment([
+    reviewSummaryMarker,
+    ...brandedHeader({ mascotUrl, title: "찰싹봇 리뷰 경고" }),
+    `커밋: ${markdownText(headSha)}`,
+    ...warningLines(failure),
+    `워크플로: ${markdownText(runUrl)}`,
+  ].join("\n"));
 }
 
 export {
@@ -254,7 +228,6 @@ export {
   parseSubmissionSolutionPath,
   renderReviewFileComment,
   renderReviewFileWarning,
-  renderReviewComment,
   renderReviewSummary,
   renderReviewWarning,
   reviewFileKey,

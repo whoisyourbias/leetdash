@@ -7,13 +7,14 @@ import { promisify } from "node:util";
 
 const { defaultSourceReader, loadTrustedPullRequestScope, main, reviewPullRequest } = await import("../scripts/opencode-review.mjs");
 const { GitHubDeliveryFailure, OpenCodeClient } = await import("../scripts/opencode-review-clients.mjs");
-const { ReviewFailure } = await import("../scripts/opencode-review-core.mjs");
+const { ReviewFailure, reviewFileKey } = await import("../scripts/opencode-review-core.mjs");
 const { isSubmissionArtifactName } = await import("../scripts/validate-submission-pr.mjs");
 const execFileAsync = promisify(execFile);
 const scriptPath = path.resolve("scripts/opencode-review.mjs");
 
 const firstPath = "submissions/ada/top-interview-easy/1/solution.java";
 const secondPath = "submissions/grace/top-interview-easy/1/solution.java";
+const mascotUrl = `https://github.example/example/leetdash/raw/${"a".repeat(40)}/public/chalsakbot.png`;
 
 const catalog = {
   lists: [{ key: "top-interview-easy", items: [{ submissionKey: "1", slug: "two-sum" }] }],
@@ -23,33 +24,33 @@ const users = {
   users: [{ id: "ada", displayName: "Ada Lovelace", githubUsername: "ada" }],
 };
 function passResult() {
-  return `#### Summary
-No visible risk found.
+  return `#### 요약
+코드에서 직접 확인되는 위험은 없습니다.
 
-#### Possible risks
-- None observed from the submitted code alone.
+#### 잠재적 위험
+- 제출 코드만으로 확인된 사항 없음.
 
-#### Complexity
-- Time: O(n)
-- Space: O(n)
+#### 복잡도
+- 시간: O(n)
+- 공간: O(n)
 
-#### Readability
-- No specific improvement suggested.`;
+#### 가독성
+- 제출 코드만으로 확인된 사항 없음.`;
 }
 
 function failResult() {
-  return `#### Summary
-A visible boundary may need attention.
+  return `#### 요약
+경계 접근을 확인할 필요가 있습니다.
 
-#### Possible risks
-- At line 4, the code reads the next element without a local bounds check when the loop reaches the final element.
+#### 잠재적 위험
+- 4행에서 반복문이 마지막 원소에 도달하면 범위 검사 없이 다음 원소를 읽을 수 있습니다.
 
-#### Complexity
-- Time: O(n)
-- Space: O(n)
+#### 복잡도
+- 시간: O(n)
+- 공간: O(n)
 
-#### Readability
-- No specific improvement suggested.`;
+#### 가독성
+- 제출 코드만으로 확인된 사항 없음.`;
 }
 
 function reviewOptions(overrides = {}) {
@@ -62,7 +63,9 @@ function reviewOptions(overrides = {}) {
       githubClient: {
         createCheck: async () => ({ id: 17 }),
         completeCheck: async (value) => { completed.push(value); },
+        listManagedReviewComments: async () => [],
         upsertReviewComment: async (value) => { comments.push(value); },
+        deleteReviewComment: async () => {},
       },
       openCodeClient: { review: async () => passResult() },
       readFile: async () => "class Solution {}",
@@ -71,6 +74,7 @@ function reviewOptions(overrides = {}) {
       headSha: "head-sha-123",
       pullNumber: 42,
       runUrl: "https://github.example/actions/runs/9",
+      mascotUrl,
       apiKey: "test-api-key",
       model: "opencode-go/kimi-k2.7-code",
       submissionOnly: true,
@@ -80,26 +84,41 @@ function reviewOptions(overrides = {}) {
 }
 
 describe("reviewPullRequest", () => {
-  it("reviews each changed solution using only its path, language, and source", async () => {
+  it("reviews and publishes each changed solution before starting the next one", async () => {
     const checks = [];
     const completed = [];
     const comments = [];
     const reviews = [];
+    const events = [];
     const sources = new Map([[firstPath, "class Solution { int first; }"], [secondPath, "class Solution { int second; }"]]);
 
     const result = await reviewPullRequest({
       githubClient: {
         createCheck: async (value) => { checks.push(value); return { id: 17 }; },
         completeCheck: async (value) => { completed.push(value); },
-        upsertReviewComment: async (value) => { comments.push(value); },
+        listManagedReviewComments: async () => [],
+        upsertReviewComment: async (value) => {
+          comments.push(value);
+          const reviewedPath = [firstPath, secondPath].find((filePath) => value.body.includes(filePath));
+          events.push(reviewedPath ? `comment:${reviewedPath}` : "comment:summary");
+          return { id: comments.length + 100 };
+        },
+        deleteReviewComment: async () => {},
       },
-      openCodeClient: { review: async (value) => { reviews.push(value); return passResult(); } },
+      openCodeClient: { review: async (value) => {
+        reviews.push(value);
+        const reviewedPath = value.prompt.includes(firstPath) ? firstPath : secondPath;
+        events.push(`review:${reviewedPath}`);
+        if (reviewedPath === secondPath) expect(events).toContain(`comment:${firstPath}`);
+        return passResult();
+      } },
       readFile: async (filePath) => sources.get(filePath),
       catalog,
       changedFiles: [{ status: "A", path: firstPath }, { status: "M", path: secondPath }],
       headSha: "head-sha-123",
       pullNumber: 42,
       runUrl: "https://github.example/actions/runs/9",
+      mascotUrl,
       apiKey: "test-api-key",
       model: "opencode-go/kimi-k2.7-code",
       submissionOnly: true,
@@ -111,13 +130,96 @@ describe("reviewPullRequest", () => {
     expect(reviews[0]).toMatchObject({ model: "opencode-go/kimi-k2.7-code", apiKey: "test-api-key" });
     expect(reviews.map(({ prompt }) => prompt.includes("class Solution { int first; }"))).toEqual([true, false]);
     expect(reviews.map(({ prompt }) => prompt.includes("class Solution { int second; }"))).toEqual([false, true]);
-    expect(comments).toHaveLength(1);
-    expect(comments[0].body).toContain("<!-- leetdash-opencode-review -->");
+    expect(comments).toHaveLength(3);
+    expect(events).toEqual([
+      `review:${firstPath}`,
+      `comment:${firstPath}`,
+      `review:${secondPath}`,
+      `comment:${secondPath}`,
+      "comment:summary",
+    ]);
+    expect(comments[2].body).toContain("<!-- leetdash-opencode-review -->");
     expect(completed).toHaveLength(1);
     expect(completed[0].conclusion).toBe("success");
     expect(result.results).toHaveLength(2);
     expect(result.results.map(({ path }) => path)).toEqual([firstPath, secondPath]);
-    expect(result.results.every(({ markdown }) => markdown.includes("#### Summary"))).toBe(true);
+    expect(result.results.every(({ markdown }) => markdown.includes("#### 요약"))).toBe(true);
+  });
+
+  it("posts a warning for one failed file and continues reviewing later files", async () => {
+    const responses = [
+      new ReviewFailure({ stage: "model-request", reason: "MODEL_REQUEST_FAILED", detail: "safe" }),
+      passResult(),
+    ];
+    const reviewCalls = [];
+    const { options, comments, completed } = reviewOptions({
+      changedFiles: [{ status: "A", path: firstPath }, { status: "M", path: secondPath }],
+      openCodeClient: { review: async ({ prompt }) => {
+        reviewCalls.push(prompt);
+        const response = responses.shift();
+        if (response instanceof Error) throw response;
+        return response;
+      } },
+    });
+
+    const result = await reviewPullRequest(options);
+
+    expect(reviewCalls).toHaveLength(2);
+    expect(result.results.map(({ status }) => status)).toEqual(["warning", "reviewed"]);
+    expect(comments.some(({ body }) => body.includes(firstPath) && body.includes("찰싹봇 리뷰 경고"))).toBe(true);
+    expect(comments.some(({ body }) => body.includes(secondPath) && body.includes("찰싹봇의 코드 리뷰"))).toBe(true);
+    expect(result.markdown).toContain("리뷰 완료: 1개");
+    expect(result.markdown).toContain("리뷰 경고: 1개");
+    expect(result.markdown).toContain("댓글 전달 실패: 0개");
+    expect(completed.at(-1)).toMatchObject({ conclusion: "success" });
+  });
+
+  it("continues after one file comment delivery fails and reports only a sanitized count", async () => {
+    const reviewCalls = [];
+    const delivered = [];
+    const { options, completed } = reviewOptions({
+      changedFiles: [{ status: "A", path: firstPath }, { status: "M", path: secondPath }],
+      openCodeClient: { review: async ({ prompt }) => { reviewCalls.push(prompt); return passResult(); } },
+    });
+    options.githubClient.upsertReviewComment = async ({ body }) => {
+      if (body.includes(firstPath)) {
+        throw new GitHubDeliveryFailure({ httpStatus: 503, requestId: "delivery-secret-1" });
+      }
+      delivered.push(body);
+      return { id: delivered.length + 100 };
+    };
+
+    const result = await reviewPullRequest(options);
+
+    expect(reviewCalls).toHaveLength(2);
+    expect(delivered.some((body) => body.includes(secondPath))).toBe(true);
+    expect(result.markdown).toContain("댓글 전달 실패: 1개");
+    expect(completed.at(-1).summary).not.toContain("delivery-secret-1");
+    expect(completed.at(-1)).toMatchObject({ conclusion: "success" });
+  });
+
+  it("reuses managed comment IDs and deletes stale file comments after all targets", async () => {
+    const deleted = [];
+    const upserts = [];
+    const stalePath = "submissions/ada/top-interview-easy/999/solution.java";
+    const { options } = reviewOptions({
+      githubClient: {
+        createCheck: async () => ({ id: 17 }),
+        completeCheck: async () => {},
+        listManagedReviewComments: async () => [
+          { id: 31, kind: "summary" },
+          { id: 32, kind: "file", key: reviewFileKey(firstPath) },
+          { id: 33, kind: "file", key: reviewFileKey(stalePath) },
+        ],
+        upsertReviewComment: async (value) => { upserts.push(value); return { id: value.commentId ?? 44 }; },
+        deleteReviewComment: async (commentId) => { deleted.push(commentId); },
+      },
+    });
+
+    await reviewPullRequest(options);
+
+    expect(upserts.map(({ commentId }) => commentId)).toEqual([32, 31]);
+    expect(deleted).toEqual([33]);
   });
 
   it("keeps a possible code risk informational", async () => {
@@ -129,8 +231,8 @@ describe("reviewPullRequest", () => {
 
     expect(result.conclusion).toBe("success");
     expect(completed[0].conclusion).toBe("success");
-    expect(comments[0].body).toContain("#### Possible risks");
-    expect(comments[0].body).toContain("the loop reaches the final element.");
+    expect(comments[0].body).toContain("#### 잠재적 위험");
+    expect(comments[0].body).toContain("반복문이 마지막 원소에 도달하면");
   });
 
   it("renders a sanitized warning for a model failure and completes the check successfully", async () => {
@@ -143,8 +245,8 @@ describe("reviewPullRequest", () => {
 
     expect(result.conclusion).toBe("success");
     expect(completed[0].conclusion).toBe("success");
-    expect(comments[0].body).toContain("## OpenCode review warning");
-    expect(comments[0].body).toContain("Stage: model-request");
+    expect(comments[0].body).toContain("## 찰싹봇 리뷰 경고");
+    expect(comments[0].body).toContain("단계: model-request");
     expect(comments[0].body).not.toContain(rawSecret);
   });
 
@@ -179,9 +281,9 @@ describe("reviewPullRequest", () => {
 
     await reviewPullRequest(options);
 
-    const output = [comments[0].body, completed[0].summary].join("\n");
+    const output = [...comments.map(({ body }) => body), completed[0].summary].join("\n");
     expect(output).toContain(requiredValue);
-    expect(output).toContain("Commit: head-sha-123");
+    expect(output).toContain("커밋: head-sha-123");
     expect(output).toContain(firstPath);
     expect(output).toContain("https://github.example/actions/runs/9");
   });
@@ -198,10 +300,10 @@ describe("reviewPullRequest", () => {
     });
 
     const result = await reviewPullRequest(options);
-    const output = [comments[0].body, completed[0].summary].join("\n");
+    const output = [...comments.map(({ body }) => body), completed[0].summary].join("\n");
 
     expect(result.results.map(({ markdown }) => markdown)).toEqual(["[submitted source redacted]", secondResult]);
-    expect(output).toContain("> #### Summary\n> Every edge case is handled.");
+    expect(output).toContain("#### Summary\nEvery edge case is handled.");
   });
 
   it.each([
@@ -214,9 +316,9 @@ describe("reviewPullRequest", () => {
     });
 
     const result = await reviewPullRequest(options);
-    const output = [result.markdown, comments[0].body, completed[0].summary].join("\n");
+    const output = [result.markdown, ...comments.map(({ body }) => body), completed[0].summary].join("\n");
 
-    expect(output).toContain(`> #### Summary\n> ${summary}`);
+    expect(output).toContain(`#### Summary\n${summary}`);
   });
 
   it("keeps every redaction sentinel out of managed outputs on real client-to-orchestrator paths", async () => {
@@ -276,13 +378,19 @@ describe("reviewPullRequest", () => {
 
   it("updates a prior managed failure body with a later passing review", async () => {
     const { options } = reviewOptions();
-    let storedBody = "<!-- leetdash-opencode-review -->\\n## OpenCode review warning";
-    options.githubClient.upsertReviewComment = async ({ body }) => { storedBody = body; };
+    let storedBody = "";
+    options.githubClient.listManagedReviewComments = async () => [
+      { id: 32, kind: "file", key: reviewFileKey(firstPath) },
+      { id: 31, kind: "summary" },
+    ];
+    options.githubClient.upsertReviewComment = async ({ commentId, body }) => {
+      if (commentId === 32) storedBody = body;
+    };
 
     await reviewPullRequest(options);
 
-    expect(storedBody).toContain("> #### Summary\n> No visible risk found.");
-    expect(storedBody).not.toContain("review warning");
+    expect(storedBody).toContain("#### 요약\n코드에서 직접 확인되는 위험은 없습니다.");
+    expect(storedBody).not.toContain("리뷰 경고");
   });
 
   it("preserves a passing verdict when comment delivery fails", async () => {
@@ -293,7 +401,7 @@ describe("reviewPullRequest", () => {
 
     expect(result.conclusion).toBe("success");
     expect(completed[0].conclusion).toBe("success");
-    expect(completed[0].summary).toContain("GitHub review comment delivery failed");
+    expect(completed[0].summary).toContain("댓글 전달 실패: 2개");
     expect(completed[0].summary).not.toContain("delivery-1");
   });
 
@@ -319,7 +427,7 @@ describe("reviewPullRequest", () => {
 
     expect(result.conclusion).toBe("success");
     expect(completed[0].conclusion).toBe("success");
-    expect(comments[0].body).toContain("No changed solution.* files require review.");
+    expect(comments[0].body).toContain("변경된 solution.* 파일이 없어 리뷰를 생략했습니다.");
   });
 
   it("completes the check when changed-file input is malformed", async () => {
@@ -339,10 +447,10 @@ describe("reviewPullRequest", () => {
 
     const result = await reviewPullRequest(options);
 
-    expect(result.failure).toMatchObject({ stage: "path-parse", reason: "SUBMISSION_PATH_INVALID" });
+    expect(result.failures[0]).toMatchObject({ stage: "path-parse", reason: "SUBMISSION_PATH_INVALID" });
     expect(result.conclusion).toBe("success");
     expect(completed[0].conclusion).toBe("success");
-    expect(comments[0].body).toContain("## OpenCode review warning");
+    expect(comments[0].body).toContain("## 찰싹봇 리뷰 경고");
     expect(comments[0].body).not.toContain("<script>");
   });
 
@@ -577,13 +685,16 @@ describe("opencode-review CLI", () => {
     const githubClient = {
       createCheck: async (value) => { checks.push(value); return { id: 17 }; },
       completeCheck: async (value) => { checks.push(value); },
+      listManagedReviewComments: async () => [],
       upsertReviewComment: async () => {},
+      deleteReviewComment: async () => {},
       getPullRequest: async () => ({ number: 42, changed_files: 1, user: { login: "ada" }, base: { sha: "base-sha" }, head: { sha: "head-sha", repo: { full_name: "fork-user/leetdash" } } }),
       listPullRequestFiles: async () => [{ status: "modified", filename: firstPath }],
       getFileContent: async (value) => { sourceReads.push(value); return source; },
     };
 
     const outcome = await main({
+      mascotUrl,
       argv: ["--base", "base-sha", "--head", "head-sha", "--pull-number", "42"],
       env: {
         GITHUB_REPOSITORY: "example/leetdash",
@@ -619,6 +730,7 @@ describe("opencode-review CLI", () => {
     };
 
     const outcome = await main({
+      mascotUrl,
       argv: ["--base", "base-sha", "--head", "head-sha", "--pull-number", "42"],
       env: {
         GITHUB_REPOSITORY: "example/leetdash",
@@ -642,13 +754,16 @@ describe("opencode-review CLI", () => {
     const githubClient = {
       createCheck: async () => ({ id: 17 }),
       completeCheck: async (value) => { completed.push(value); },
+      listManagedReviewComments: async () => [],
       upsertReviewComment: async () => {},
+      deleteReviewComment: async () => {},
       getPullRequest: async () => ({ number: 42, changed_files: 1, user: { login: "ada" }, base: { sha: "base-sha" }, head: { sha: "head-sha", repo: { full_name: "example/leetdash" } } }),
       listPullRequestFiles: async () => [{ status: "modified", filename: firstPath }],
       getFileContent: async () => { throw new Error("source must not be fetched without review configuration"); },
     };
 
     const outcome = await main({
+      mascotUrl,
       argv: ["--base", "base-sha", "--head", "head-sha", "--pull-number", "42"],
       env: {
         GITHUB_REPOSITORY: "example/leetdash",
@@ -686,6 +801,7 @@ describe("opencode-review CLI", () => {
     const { options, completed } = reviewOptions();
 
     const outcome = await main({
+      mascotUrl,
       argv: ["--base", "base", "--head", "head", "--pull-number", "42"],
       env: {
         GITHUB_REPOSITORY: "example/leetdash",
@@ -713,6 +829,7 @@ describe("opencode-review CLI", () => {
     options.githubClient.createCheck = async () => { calls.push("check"); return { id: 17 }; };
 
     const outcome = await main({
+      mascotUrl,
       argv: ["--base", "base", "--head", "head", "--pull-number", "42"],
       env: {
         GITHUB_REPOSITORY: "example/leetdash",
