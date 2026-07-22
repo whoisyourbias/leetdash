@@ -116,6 +116,17 @@ describe("managed review markers and branding", () => {
     })).toBe(`https://github.com/whoisyourbias/leetdash/raw/${baseSha}/public/chalsakbot.png`);
   });
 
+  it.each([
+    { serverUrl: "http://github.com", repository: "whoisyourbias/leetdash", baseSha: "a".repeat(40) },
+    { serverUrl: "https://github.com", repository: "invalid", baseSha: "a".repeat(40) },
+    { serverUrl: "https://github.com", repository: "whoisyourbias/leetdash", baseSha: "not-a-sha" },
+  ])("rejects untrusted mascot URL inputs", (input) => {
+    expect(() => buildMascotUrl(input)).toThrowError(expect.objectContaining({
+      stage: "catalog-resolve",
+      reason: "CATALOG_MAPPING_FAILED",
+    }));
+  });
+
   it("renders branded file, warning, and summary comments", () => {
     const mascotUrl = `https://github.com/example/leetdash/raw/${"a".repeat(40)}/public/chalsakbot.png`;
     const shared = {

@@ -405,6 +405,40 @@ describe("reviewPullRequest", () => {
     expect(completed[0].summary).not.toContain("delivery-1");
   });
 
+  it("avoids duplicate comments when managed comment discovery fails", async () => {
+    const { options, completed } = reviewOptions();
+    let mutations = 0;
+    options.githubClient.listManagedReviewComments = async () => {
+      throw new GitHubDeliveryFailure({ httpStatus: 503, requestId: "discovery-1" });
+    };
+    options.githubClient.upsertReviewComment = async () => { mutations += 1; };
+    options.githubClient.deleteReviewComment = async () => { mutations += 1; };
+
+    const result = await reviewPullRequest(options);
+
+    expect(result.conclusion).toBe("success");
+    expect(mutations).toBe(0);
+    expect(completed[0].summary).toContain("댓글 전달 실패: 2개");
+    expect(completed[0].summary).not.toContain("discovery-1");
+  });
+
+  it("reports a stale managed comment deletion failure and continues", async () => {
+    const stalePath = "submissions/ada/top-interview-easy/999/solution.java";
+    const { options, completed } = reviewOptions();
+    options.githubClient.listManagedReviewComments = async () => [
+      { id: 33, kind: "file", key: reviewFileKey(stalePath) },
+    ];
+    options.githubClient.deleteReviewComment = async () => {
+      throw new GitHubDeliveryFailure({ httpStatus: 503, requestId: "delete-1" });
+    };
+
+    const result = await reviewPullRequest(options);
+
+    expect(result.conclusion).toBe("success");
+    expect(completed[0].summary).toContain("댓글 전달 실패: 1개");
+    expect(completed[0].summary).not.toContain("delete-1");
+  });
+
   it("emits a successful not-applicable check without review service or comment calls", async () => {
     const { options, completed } = reviewOptions({ submissionOnly: false });
     let requests = 0;
