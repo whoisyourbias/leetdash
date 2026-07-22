@@ -13,6 +13,7 @@ import { formatDateTime, formatPercent } from "@/lib/format";
 import { getGithubProfileUrl } from "@/lib/github";
 import { formatCatalogListTitle } from "@/lib/i18n";
 import type { UserDashboardRow } from "@/lib/progress";
+import { getUserProfileHref } from "@/lib/routes";
 
 function ProgressCell({
   listKey,
@@ -49,9 +50,9 @@ function ProgressCell({
 function UserIdentity({ user }: { user: UserDashboardRow }) {
   return (
     <div className="user-cell">
-      <Link className="user-name" href={`/users/${user.id}`}>
+      <a className="user-name" href={getUserProfileHref(user.id)}>
         {user.displayName}
-      </Link>
+      </a>
       <a
         className="muted mono github-link"
         href={getGithubProfileUrl(user.githubUsername)}
