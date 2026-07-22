@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { GitHubReviewClient, OpenCodeClient } from "../scripts/opencode-review-clients.mjs";
+import { reviewFileKey, reviewFileMarker } from "../scripts/opencode-review-core.mjs";
 
 function jsonResponse(body, { status = 200, headers = {} } = {}) {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...headers } });
@@ -219,51 +220,56 @@ describe("GitHubReviewClient", () => {
     });
   });
 
-  it("paginates comments and updates only an existing marked GitHub Actions comment", async () => {
+  it("paginates and discovers only managed GitHub Actions comments", async () => {
     const requests = [];
-    const userMarker = { id: 20, body: "<!-- leetdash-opencode-review -->\nuser content", user: { login: "ada" } };
-    const pageOne = [...Array.from({ length: 99 }, (_, index) => ({ id: index + 1, body: "ordinary", user: { login: "ada" } })), userMarker];
-    const botMarker = { id: 33, body: "<!-- leetdash-opencode-review -->\nold review", user: { login: "github-actions[bot]" } };
+    const reviewPath = "submissions/ada/programmers/12906/solution.java";
+    const summary = { id: 301, body: "<!-- leetdash-opencode-review -->\nsummary", user: { login: "github-actions[bot]" } };
+    const spoof = { id: 302, body: `${reviewFileMarker(reviewPath)}\nspoof`, user: { login: "ada" } };
+    const file = { id: 303, body: `${reviewFileMarker(reviewPath)}\nfile`, user: { login: "github-actions[bot]" } };
+    const pageOne = [...Array.from({ length: 98 }, (_, index) => ({ id: index + 1, body: "ordinary", user: { login: "ada" } })), summary, spoof];
     const client = new GitHubReviewClient({
       repository: "example/leetdash",
       token: "github-secret",
       fetchImpl: async (url, init) => {
         requests.push({ url: String(url), init });
         const requestUrl = new URL(url);
-        if (init.method === "GET") {
-          return jsonResponse(requestUrl.searchParams.get("page") === "1" ? pageOne : [botMarker]);
-        }
-        return jsonResponse({ id: botMarker.id });
+        return jsonResponse(requestUrl.searchParams.get("page") === "1" ? pageOne : [file]);
       },
     });
 
-    await expect(client.upsertReviewComment({ pullNumber: 7, body: "<!-- leetdash-opencode-review -->\nnew review" })).resolves.toEqual({ id: 33 });
+    await expect(client.listManagedReviewComments(7)).resolves.toEqual([
+      { id: summary.id, kind: "summary" },
+      { id: file.id, kind: "file", key: reviewFileKey(reviewPath) },
+    ]);
 
-    expect(requests.slice(0, 2).map(({ url }) => url)).toEqual([
+    expect(requests.map(({ url }) => url)).toEqual([
       "https://api.github.com/repos/example/leetdash/issues/7/comments?per_page=100&page=1",
       "https://api.github.com/repos/example/leetdash/issues/7/comments?per_page=100&page=2",
     ]);
-    expect(requests[2].url).toBe("https://api.github.com/repos/example/leetdash/issues/comments/33");
-    expect(requests[2].init.method).toBe("PATCH");
-    expect(JSON.parse(requests[2].init.body)).toEqual({ body: "<!-- leetdash-opencode-review -->\nnew review" });
-    expect(requests.some(({ url }) => url.endsWith(`/comments/${userMarker.id}`))).toBe(false);
   });
 
-  it("posts a marked review comment when no GitHub Actions marker exists", async () => {
+  it("creates, updates, and deletes review comments using resolved IDs", async () => {
     const requests = [];
     const client = new GitHubReviewClient({
       repository: "example/leetdash",
       token: "github-secret",
       fetchImpl: async (url, init) => {
         requests.push({ url: String(url), init });
-        return jsonResponse(init.method === "GET" ? [] : { id: 44 });
+        return init.method === "DELETE" ? new Response(null, { status: 204 }) : jsonResponse({ id: 44 });
       },
     });
 
-    await expect(client.upsertReviewComment({ pullNumber: 7, body: "<!-- leetdash-opencode-review -->\nnew review" })).resolves.toEqual({ id: 44 });
-    expect(requests).toHaveLength(2);
-    expect(requests[1].url).toBe("https://api.github.com/repos/example/leetdash/issues/7/comments");
-    expect(requests[1].init.method).toBe("POST");
+    await expect(client.upsertReviewComment({ pullNumber: 7, commentId: 32, body: "updated" })).resolves.toEqual({ id: 44 });
+    await expect(client.upsertReviewComment({ pullNumber: 7, body: "created" })).resolves.toEqual({ id: 44 });
+    await expect(client.deleteReviewComment(32)).resolves.toBeNull();
+
+    expect(requests.map(({ url, init }) => ({ path: new URL(url).pathname, method: init.method }))).toEqual([
+      { path: "/repos/example/leetdash/issues/comments/32", method: "PATCH" },
+      { path: "/repos/example/leetdash/issues/7/comments", method: "POST" },
+      { path: "/repos/example/leetdash/issues/comments/32", method: "DELETE" },
+    ]);
+    expect(JSON.parse(requests[0].init.body)).toEqual({ body: "updated" });
+    expect(JSON.parse(requests[1].init.body)).toEqual({ body: "created" });
   });
 
   it("returns a sanitized dedicated failure for comment delivery", async () => {
@@ -297,7 +303,7 @@ describe("GitHubReviewClient", () => {
       fetchImpl: async () => jsonResponse({ unexpected: "comment response" }),
     });
 
-    await expect(client.upsertReviewComment({ pullNumber: 7, body: "<!-- leetdash-opencode-review -->\nnew review" })).rejects.toMatchObject({
+    await expect(client.listManagedReviewComments(7)).rejects.toMatchObject({
       name: "GitHubDeliveryFailure",
       detail: "GitHub review comment delivery failed",
     });
