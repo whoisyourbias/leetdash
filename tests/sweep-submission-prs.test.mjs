@@ -20,6 +20,14 @@ const successfulChecks = [
   { id: 201, name: "opencode-review", status: "completed", conclusion: "success", app: { slug: "github-actions" } },
 ];
 
+const successfulStatuses = [
+  { id: 301, context: "opencode-review-gate", state: "success", creator: { login: "github-actions[bot]" } },
+];
+
+function evaluate(options) {
+  return evaluatePullRequest({ commitStatuses: successfulStatuses, ...options });
+}
+
 function makePullRequest(overrides = {}) {
   return {
     number: 42,
@@ -35,7 +43,7 @@ function makePullRequest(overrides = {}) {
 
 describe("submission PR sweeper eligibility", () => {
   it("marks an author-owned submission PR with successful required checks as eligible", () => {
-    const decision = evaluatePullRequest({
+    const decision = evaluate({
       pullRequest: makePullRequest(),
       files: [validFile],
       checkRuns: successfulChecks,
@@ -47,7 +55,7 @@ describe("submission PR sweeper eligibility", () => {
   });
 
   it("rejects another user's submission path", () => {
-    const decision = evaluatePullRequest({
+    const decision = evaluate({
       pullRequest: makePullRequest(),
       files: [{ filename: "submissions/grace/top-interview-easy/1/Solution.java", status: "modified" }],
       checkRuns: successfulChecks,
@@ -62,7 +70,7 @@ describe("submission PR sweeper eligibility", () => {
   });
 
   it("rejects removed files even under the author path", () => {
-    const decision = evaluatePullRequest({
+    const decision = evaluate({
       pullRequest: makePullRequest(),
       files: [{ ...validFile, status: "removed" }],
       checkRuns: successfulChecks,
@@ -77,7 +85,7 @@ describe("submission PR sweeper eligibility", () => {
   });
 
   it("accepts renamed files with a valid destination under the author path", () => {
-    const decision = evaluatePullRequest({
+    const decision = evaluate({
       pullRequest: makePullRequest(),
       files: [{ ...validFile, status: "renamed", previous_filename: "submissions/ada/top-interview-easy/1/solution.jvaa" }],
       checkRuns: successfulChecks,
@@ -89,7 +97,7 @@ describe("submission PR sweeper eligibility", () => {
   });
 
   it("rejects a renamed file whose destination belongs to another user", () => {
-    const decision = evaluatePullRequest({
+    const decision = evaluate({
       pullRequest: makePullRequest(),
       files: [{
         filename: "submissions/grace/top-interview-easy/1/Solution.java",
@@ -113,7 +121,7 @@ describe("submission PR sweeper eligibility", () => {
   });
 
   it("requires a successful validate check", () => {
-    const decision = evaluatePullRequest({
+    const decision = evaluate({
       pullRequest: makePullRequest(),
       files: [validFile],
       checkRuns: [{ name: "validate", conclusion: "failure" }],
@@ -124,93 +132,41 @@ describe("submission PR sweeper eligibility", () => {
     expect(decision).toEqual({ eligible: false, reason: "validate check is not successful for abc123." });
   });
 
-  it("requires an opencode-review check", () => {
-    const decision = evaluatePullRequest({
+  it.each([
+    ["missing", []],
+    ["pending", [{ ...successfulStatuses[0], state: "pending" }]],
+    ["failed", [{ ...successfulStatuses[0], state: "failure" }]],
+    ["malformed ID", [{ ...successfulStatuses[0], id: "301" }]],
+    ["wrong creator", [{ ...successfulStatuses[0], creator: { login: "untrusted-bot" } }]],
+    ["ambiguous latest status", [successfulStatuses[0], { ...successfulStatuses[0], state: "failure" }]],
+  ])("rejects a %s OpenCode review gate", (_name, commitStatuses) => {
+    const decision = evaluate({
       pullRequest: makePullRequest(),
       files: [validFile],
       checkRuns: [successfulChecks[0]],
+      commitStatuses,
       users,
       catalog,
     });
 
-    expect(decision).toEqual({ eligible: false, reason: "opencode-review check is not successful for abc123." });
+    expect(decision).toEqual({ eligible: false, reason: "opencode-review-gate status is not successful for abc123." });
   });
 
-  it("requires the opencode-review check to complete successfully", () => {
-    const decision = evaluatePullRequest({
+  it("lets a newer pending gate mask an older successful gate", () => {
+    const decision = evaluate({
       pullRequest: makePullRequest(),
       files: [validFile],
-      checkRuns: [successfulChecks[0], { name: "opencode-review", status: "in_progress", conclusion: null }],
+      checkRuns: [successfulChecks[0]],
+      commitStatuses: [successfulStatuses[0], { ...successfulStatuses[0], id: 302, state: "pending" }],
       users,
       catalog,
     });
 
-    expect(decision).toEqual({ eligible: false, reason: "opencode-review check is not successful for abc123." });
-  });
-
-  it("rejects a failed opencode-review check", () => {
-    const decision = evaluatePullRequest({
-      pullRequest: makePullRequest(),
-      files: [validFile],
-      checkRuns: [successfulChecks[0], { name: "opencode-review", status: "completed", conclusion: "failure" }],
-      users,
-      catalog,
-    });
-
-    expect(decision).toEqual({ eligible: false, reason: "opencode-review check is not successful for abc123." });
-  });
-
-  it.each([
-    ["failed", { status: "completed", conclusion: "failure" }],
-    ["in progress", { status: "in_progress", conclusion: null }],
-  ])("lets a newer %s run mask an older successful run", (_name, newestState) => {
-    const decision = evaluatePullRequest({
-      pullRequest: makePullRequest(),
-      files: [validFile],
-      checkRuns: [
-        successfulChecks[0],
-        successfulChecks[1],
-        { ...successfulChecks[1], id: 202, ...newestState },
-      ],
-      users,
-      catalog,
-    });
-
-    expect(decision).toEqual({ eligible: false, reason: "opencode-review check is not successful for abc123." });
-  });
-
-  it("does not accept a successful exact-name run from another GitHub App", () => {
-    const decision = evaluatePullRequest({
-      pullRequest: makePullRequest(),
-      files: [validFile],
-      checkRuns: [
-        successfulChecks[0],
-        { ...successfulChecks[1], app: { slug: "untrusted-review-app" } },
-      ],
-      users,
-      catalog,
-    });
-
-    expect(decision).toEqual({ eligible: false, reason: "opencode-review check is not successful for abc123." });
-  });
-
-  it.each([
-    ["missing app provenance", { ...successfulChecks[1], app: undefined }],
-    ["ambiguous latest run", [successfulChecks[1], { ...successfulChecks[1], conclusion: "failure" }]],
-  ])("rejects %s", (_name, reviewRuns) => {
-    const decision = evaluatePullRequest({
-      pullRequest: makePullRequest(),
-      files: [validFile],
-      checkRuns: [successfulChecks[0], ...(Array.isArray(reviewRuns) ? reviewRuns : [reviewRuns])],
-      users,
-      catalog,
-    });
-
-    expect(decision).toEqual({ eligible: false, reason: "opencode-review check is not successful for abc123." });
+    expect(decision).toEqual({ eligible: false, reason: "opencode-review-gate status is not successful for abc123." });
   });
 
   it("normalizes comma-separated required check names while preserving their order", () => {
-    const decision = evaluatePullRequest({
+    const decision = evaluate({
       pullRequest: makePullRequest(),
       files: [validFile],
       checkRuns: [successfulChecks[1]],
@@ -223,7 +179,7 @@ describe("submission PR sweeper eligibility", () => {
   });
 
   it("skips draft pull requests", () => {
-    const decision = evaluatePullRequest({
+    const decision = evaluate({
       pullRequest: makePullRequest({ draft: true }),
       files: [validFile],
       checkRuns: successfulChecks,
@@ -243,7 +199,7 @@ describe("submission PR sweeper eligibility", () => {
     ["mismatched count", 2, [validFile]],
     ["count beyond the GitHub Files API limit", 3001, Array.from({ length: 3000 }, () => validFile)],
   ])("rejects %s when the fetched PR file list cannot be complete", (_name, changedFilesCount, files) => {
-    const decision = evaluatePullRequest({
+    const decision = evaluate({
       pullRequest: makePullRequest({ changed_files: changedFilesCount }),
       files,
       checkRuns: successfulChecks,
@@ -259,13 +215,17 @@ describe("submission PR sweeper eligibility", () => {
 });
 
 class FakeGitHubClient {
-  constructor({ pullRequests, filesByNumber, checkRunsBySha, failedMerges = new Set() }) {
+  constructor({ pullRequests, filesByNumber, checkRunsBySha, statusesBySha, failedMerges = new Set() }) {
     this.pullRequests = pullRequests;
     this.filesByNumber = filesByNumber;
     this.checkRunsBySha = checkRunsBySha;
+    this.statusesBySha = statusesBySha ?? Object.fromEntries(
+      Object.keys(checkRunsBySha).map((sha) => [sha, successfulStatuses]),
+    );
     this.failedMerges = failedMerges;
     this.pullRequestCalls = [];
     this.fileCalls = [];
+    this.statusCalls = [];
     this.mergeCalls = [];
     this.dispatchCalls = [];
   }
@@ -288,6 +248,11 @@ class FakeGitHubClient {
     this.checkRunCalls ??= [];
     this.checkRunCalls.push(sha);
     return this.checkRunsBySha[sha] ?? [];
+  }
+
+  async listCommitStatuses(sha) {
+    this.statusCalls.push(sha);
+    return this.statusesBySha[sha] ?? [];
   }
 
   async mergePullRequest(number, sha) {
@@ -317,6 +282,7 @@ describe("submission PR sweeper orchestration", () => {
     expect(client.fileCalls).toEqual([7, 7]);
     expect(client.mergeCalls).toEqual([{ number: 7, sha: "sha-7" }]);
     expect(client.checkRunCalls).toEqual(["sha-7", "sha-7"]);
+    expect(client.statusCalls).toEqual(["sha-7", "sha-7"]);
     expect(client.dispatchCalls).toEqual([{ workflowFile: "deploy-pages.yml", ref: "master" }]);
   });
 
@@ -441,6 +407,7 @@ describe("submission PR sweeper orchestration", () => {
     expect(client.pullRequestCalls).toEqual([7, 7]);
     expect(client.fileCalls).toEqual([7, 7]);
     expect(client.checkRunCalls).toEqual(["sha-7", "sha-8"]);
+    expect(client.statusCalls).toEqual(["sha-7", "sha-8"]);
     expect(client.mergeCalls).toEqual([{ number: 7, sha: "sha-8" }]);
   });
 });
@@ -466,29 +433,50 @@ describe("GitHubClient check-run retrieval", () => {
     expect(requests[0].searchParams.get("check_name")).toBeNull();
   });
 
-  it("re-fetches checks immediately before merge and stops when a rerun starts", async () => {
+  it("fetches all commit statuses from the exact head SHA without filtering by context", async () => {
+    const originalFetch = globalThis.fetch;
+    const requests = [];
+    globalThis.fetch = async (url) => {
+      const requestUrl = new URL(url);
+      requests.push(requestUrl);
+      return new Response(JSON.stringify(successfulStatuses), { status: 200 });
+    };
+
+    try {
+      const client = new GitHubClient({ repository: "leetdash/test", token: "test-token" });
+      await expect(client.listCommitStatuses("abc123")).resolves.toEqual(successfulStatuses);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0].pathname).toBe("/repos/leetdash/test/commits/abc123/statuses");
+    expect(requests[0].searchParams.get("context")).toBeNull();
+  });
+
+  it("re-fetches statuses immediately before merge and stops when a review rerun starts", async () => {
     const client = new FakeGitHubClient({
       pullRequests: [makePullRequest({ number: 7, head: { sha: "sha-7" } })],
       filesByNumber: { 7: [validFile] },
       checkRunsBySha: { "sha-7": successfulChecks },
     });
-    let checkCalls = 0;
-    client.listCheckRuns = async (sha) => {
-      client.checkRunCalls ??= [];
-      client.checkRunCalls.push(sha);
-      checkCalls += 1;
-      return checkCalls === 1
-        ? successfulChecks
-        : [...successfulChecks, { ...successfulChecks[1], id: 202, status: "in_progress", conclusion: null }];
+    let statusCalls = 0;
+    client.listCommitStatuses = async (sha) => {
+      client.statusCalls.push(sha);
+      statusCalls += 1;
+      return statusCalls === 1
+        ? successfulStatuses
+        : [...successfulStatuses, { ...successfulStatuses[0], id: 302, state: "pending" }];
     };
 
     const result = await sweepSubmissionPullRequests({ client, users, catalog });
 
     expect(result).toEqual({
       mergedCount: 0,
-      results: [{ number: 7, status: "skipped", reason: "opencode-review check is not successful for sha-7." }],
+      results: [{ number: 7, status: "skipped", reason: "opencode-review-gate status is not successful for sha-7." }],
     });
     expect(client.checkRunCalls).toEqual(["sha-7", "sha-7"]);
+    expect(client.statusCalls).toEqual(["sha-7", "sha-7"]);
     expect(client.mergeCalls).toEqual([]);
   });
 });

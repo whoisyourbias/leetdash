@@ -9,8 +9,10 @@ import {
 } from "./validate-submission-pr.mjs";
 
 const defaultBaseBranch = "master";
-const defaultRequiredChecks = ["validate", "opencode-review"];
+const defaultRequiredChecks = ["validate"];
+const defaultRequiredStatuses = ["opencode-review-gate"];
 const defaultRequiredCheckApp = "github-actions";
+const defaultRequiredStatusCreator = "github-actions[bot]";
 const defaultDeployWorkflow = "deploy-pages.yml";
 
 function readJson(relativePath) {
@@ -44,6 +46,24 @@ function hasSuccessfulCheckRun(checkRuns, checkName, expectedApp) {
   return checkRun?.status === "completed" && checkRun?.conclusion === "success";
 }
 
+function selectLatestCommitStatus(commitStatuses, context, expectedCreator) {
+  const exactContextStatuses = commitStatuses.filter((status) => status?.context === context);
+  if (exactContextStatuses.some((status) => status?.creator?.login !== expectedCreator)) return undefined;
+  if (
+    exactContextStatuses.length === 0
+    || exactContextStatuses.some((status) => !Number.isSafeInteger(status.id))
+  ) {
+    return undefined;
+  }
+  const latestId = Math.max(...exactContextStatuses.map((status) => status.id));
+  const latestStatuses = exactContextStatuses.filter((status) => status.id === latestId);
+  return latestStatuses.length === 1 ? latestStatuses[0] : undefined;
+}
+
+function hasSuccessfulCommitStatus(commitStatuses, context, expectedCreator) {
+  return selectLatestCommitStatus(commitStatuses, context, expectedCreator)?.state === "success";
+}
+
 function normalizeRequiredChecks(requiredChecks = defaultRequiredChecks) {
   const values = Array.isArray(requiredChecks) ? requiredChecks : [requiredChecks];
   const normalized = values.flatMap((value) => String(value).split(",")).map((value) => value.trim()).filter(Boolean);
@@ -54,11 +74,14 @@ function evaluatePullRequest({
   pullRequest,
   files,
   checkRuns,
+  commitStatuses,
   users,
   catalog,
   baseBranch = defaultBaseBranch,
   requiredChecks = defaultRequiredChecks,
+  requiredStatuses = defaultRequiredStatuses,
   requiredCheckApp = defaultRequiredCheckApp,
+  requiredStatusCreator = defaultRequiredStatusCreator,
 }) {
   if (pullRequest.base?.ref !== baseBranch) {
     return { eligible: false, reason: `base branch is ${pullRequest.base?.ref ?? "unknown"}, not ${baseBranch}.` };
@@ -89,6 +112,12 @@ function evaluatePullRequest({
   for (const requiredCheck of normalizeRequiredChecks(requiredChecks)) {
     if (!hasSuccessfulCheckRun(checkRuns, requiredCheck, requiredCheckApp)) {
       return { eligible: false, reason: `${requiredCheck} check is not successful for ${headSha}.` };
+    }
+  }
+
+  for (const requiredStatus of normalizeRequiredChecks(requiredStatuses)) {
+    if (!hasSuccessfulCommitStatus(commitStatuses, requiredStatus, requiredStatusCreator)) {
+      return { eligible: false, reason: `${requiredStatus} status is not successful for ${headSha}.` };
     }
   }
 
@@ -196,6 +225,10 @@ class GitHubClient {
     return this.paginateCheckRuns(sha);
   }
 
+  listCommitStatuses(sha) {
+    return this.paginateArray(`/commits/${sha}/statuses`);
+  }
+
   mergePullRequest(number, sha) {
     return this.request("PUT", `/pulls/${number}/merge`, {
       body: {
@@ -218,11 +251,14 @@ async function sweepSubmissionPullRequests({
   catalog,
   baseBranch = defaultBaseBranch,
   requiredChecks = defaultRequiredChecks,
+  requiredStatuses = defaultRequiredStatuses,
   requiredCheckApp = defaultRequiredCheckApp,
+  requiredStatusCreator = defaultRequiredStatusCreator,
   deployWorkflow = defaultDeployWorkflow,
 }) {
   const pullRequests = await client.listOpenPullRequests(baseBranch);
   const normalizedRequiredChecks = normalizeRequiredChecks(requiredChecks);
+  const normalizedRequiredStatuses = normalizeRequiredChecks(requiredStatuses);
   const results = [];
   let mergedCount = 0;
 
@@ -230,15 +266,19 @@ async function sweepSubmissionPullRequests({
     const pullRequest = await client.getPullRequest(pullRequestSummary.number);
     const files = await client.listPullRequestFiles(pullRequest.number);
     const checkRuns = await client.listCheckRuns(pullRequest.head.sha);
+    const commitStatuses = await client.listCommitStatuses(pullRequest.head.sha);
     const decision = evaluatePullRequest({
       pullRequest,
       files,
       checkRuns,
+      commitStatuses,
       users,
       catalog,
       baseBranch,
       requiredChecks: normalizedRequiredChecks,
+      requiredStatuses: normalizedRequiredStatuses,
       requiredCheckApp,
+      requiredStatusCreator,
     });
 
     if (!decision.eligible) {
@@ -251,15 +291,19 @@ async function sweepSubmissionPullRequests({
     const refreshedFiles = await client.listPullRequestFiles(pullRequestSummary.number);
     const refreshedHeadSha = refreshedPullRequest?.head?.sha;
     const refreshedCheckRuns = refreshedHeadSha ? await client.listCheckRuns(refreshedHeadSha) : [];
+    const refreshedCommitStatuses = refreshedHeadSha ? await client.listCommitStatuses(refreshedHeadSha) : [];
     const refreshedDecision = evaluatePullRequest({
       pullRequest: refreshedPullRequest,
       files: refreshedFiles,
       checkRuns: refreshedCheckRuns,
+      commitStatuses: refreshedCommitStatuses,
       users,
       catalog,
       baseBranch,
       requiredChecks: normalizedRequiredChecks,
+      requiredStatuses: normalizedRequiredStatuses,
       requiredCheckApp,
+      requiredStatusCreator,
     });
     if (!refreshedDecision.eligible) {
       console.log(`#${pullRequest.number} skipped: ${refreshedDecision.reason}`);
@@ -317,7 +361,9 @@ async function main() {
 
   const baseBranch = process.env.SWEEP_BASE_BRANCH ?? defaultBaseBranch;
   const requiredChecks = process.env.SWEEP_REQUIRED_CHECKS ?? defaultRequiredChecks;
+  const requiredStatuses = process.env.SWEEP_REQUIRED_STATUSES ?? defaultRequiredStatuses;
   const requiredCheckApp = process.env.SWEEP_REQUIRED_CHECK_APP ?? defaultRequiredCheckApp;
+  const requiredStatusCreator = process.env.SWEEP_REQUIRED_STATUS_CREATOR ?? defaultRequiredStatusCreator;
   const deployWorkflow = process.env.SWEEP_DEPLOY_WORKFLOW ?? defaultDeployWorkflow;
   const client = new GitHubClient({ repository, token });
   const users = readJson("data/users.json");
@@ -328,7 +374,9 @@ async function main() {
     catalog,
     baseBranch,
     requiredChecks,
+    requiredStatuses,
     requiredCheckApp,
+    requiredStatusCreator,
     deployWorkflow,
   });
   appendStepSummary(result);
