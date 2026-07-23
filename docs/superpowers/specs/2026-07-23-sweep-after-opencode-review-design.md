@@ -1,5 +1,7 @@
 # Sweep After OpenCode Review Design
 
+Implementation details and verification commands are tracked in the [reliable post-review sweep plan](../plans/2026-07-23-sweep-after-opencode-review.md).
+
 ## Problem
 
 Submission pull requests can remain open even when validation and OpenCode review succeed.

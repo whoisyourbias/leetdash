@@ -34,7 +34,7 @@
 
 제출 대상이 `data/problem-catalog.json`에 아직 없으면 운영자가 카탈로그 변경 PR을 먼저 머지합니다. 참가자는 그 변경이 `master`에 반영된 뒤 풀이 파일만 담은 별도 PR을 만듭니다.
 
-PR은 `validate` 검증과 `opencode-review` 조건을 통과하면 다른 PR의 GitHub Pages 배포 완료를 기다리지 않고 머지합니다. 찰싹봇은 변경된 `solution.*` 파일을 하나씩 순서대로 리뷰하고, 각 OpenCode 응답 직후 해당 파일의 한국어 코멘트를 게시합니다. 각 파일 리뷰의 파일 경로는 리뷰한 head 커밋의 전체 소스 파일로 연결됩니다. 이전에 성공적으로 리뷰한 파일의 내용 해시가 같으면 기존 리뷰를 유지하고 OpenCode를 다시 호출하지 않으며, 내용이 바뀌었거나 이전 리뷰가 경고로 끝난 파일은 다시 리뷰합니다. 파일 하나의 리뷰나 코멘트 전달이 실패해도 경고를 남기고 다음 파일을 계속 처리합니다.
+PR은 `validate` 검증과 `opencode-review-gate` 상태를 통과하면 다른 PR의 GitHub Pages 배포 완료를 기다리지 않고 머지합니다. `opencode-review` Check Run은 상세 리뷰 기록으로 남고, 병합 gate는 최신 OpenCode workflow 실행 및 재시도 번호와 정확히 일치해야 합니다. 찰싹봇은 변경된 `solution.*` 파일을 하나씩 순서대로 리뷰하고, 각 OpenCode 응답 직후 해당 파일의 한국어 코멘트를 게시합니다. 각 파일 리뷰의 파일 경로는 리뷰한 head 커밋의 전체 소스 파일로 연결됩니다. 이전에 성공적으로 리뷰한 파일의 내용 해시가 같으면 기존 리뷰를 유지하고 OpenCode를 다시 호출하지 않으며, 내용이 바뀌었거나 이전 리뷰가 경고로 끝난 파일은 다시 리뷰합니다. 파일 하나의 리뷰나 코멘트 전달이 실패해도 경고를 남기고 다음 파일을 계속 처리하지만, 해당 gate는 실패하므로 sweep이 PR을 머지하지 않습니다. 세부 동작과 장애 복구 방식은 [Sweep After OpenCode Review 설계](docs/superpowers/specs/2026-07-23-sweep-after-opencode-review-design.md)에 정리되어 있습니다.
 
 저장소는 merge commit만 허용하며, squash merge와 rebase merge는 사용하지 않습니다.
 
@@ -205,3 +205,5 @@ npm run build
 - 소스별 제출 폴더 기반 정적 진행 데이터 생성
 - 풀이 파일 기본 판정과 `meta.json` 상태 재정의
 - 예전 `solutions/<id>/` 및 slug 제출 폴더 무시
+- 신뢰된 OpenCode 리뷰 범위, 상태 gate 수명주기, workflow 실행·재시도 상관관계
+- 병합 직전 재검증, 개별 병합 실패 후 계속 스캔, 요약 작성 뒤 비정상 종료
