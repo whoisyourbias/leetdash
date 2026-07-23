@@ -1,4 +1,5 @@
 name: OpenCode Submission Review
+run-name: opencode-review:${{ github.event.workflow_run.head_sha }}
 
 on:
   workflow_run:

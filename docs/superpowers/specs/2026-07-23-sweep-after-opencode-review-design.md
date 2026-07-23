@@ -34,13 +34,15 @@ The review workflow also publishes a commit status with the distinct context `op
 
 The distinct name is mandatory. GitHub requires both a Check Run and a commit status when they share a required context name, which would preserve the suite-association failure.
 
-The workflow receives `statuses: write`. Status publication targets the trusted pull request head SHA resolved by `resolve-opencode-review-pr.mjs`.
+The workflow receives `statuses: write`. Status publication targets the trusted pull request head SHA resolved by `resolve-opencode-review-pr.mjs`. Its run name includes that SHA, and every status target URL includes both the Actions run ID and `run_attempt` so reruns are distinguishable.
 
 ### Sweep eligibility
 
 Validation remains an app-scoped Check Run requirement named `validate`. OpenCode eligibility changes from the `opencode-review` Check Run to the latest commit status named `opencode-review-gate`.
 
-The sweeper fetches both Check Runs and commit statuses for the current head SHA and repeats both reads immediately before merge. It accepts the review gate only when the latest matching status is `success`. A missing, pending, failed, malformed, or ambiguous status skips the pull request.
+The sweeper fetches Check Runs, commit statuses, and up to the latest 1,000 `OpenCode Submission Review` workflow runs. It orders matching runs by the unique latest `run_started_at`, because a rerun keeps its run ID while incrementing `run_attempt`. Immediately before merge it refreshes the first workflow-run page and combines it with the initial snapshot while also re-reading the pull request, files, checks, and statuses. It accepts the review gate only when the latest matching status is `success`, the latest workflow run for the head SHA completed successfully, and the status target URL identifies that exact run ID and attempt. This independent Actions-run ledger prevents an older success from authorizing merge when a newer attempt fails before it can publish `pending`. A missing, pending, failed, stale, malformed, or ambiguous gate skips the pull request.
+
+GitHub caps filtered workflow-run listings at 1,000 results. A long-blocked pull request whose matching review has aged beyond that window fails closed; rerunning its validation/review refreshes the ledger entry and restores eligibility without accepting an unverifiable stale gate.
 
 ### Failure semantics
 
@@ -61,7 +63,7 @@ The migration is applied only after the implementation is committed and verified
 
 ## Error Handling
 
-- If the pending gate cannot be published, review stops because merge safety cannot be represented.
+- If the pending gate cannot be published, review stops, makes a best-effort failure publication, and leaves a failed Actions run that invalidates any older success during sweep evaluation.
 - If final status publication fails, the workflow fails and sweep is not automatically triggered because it only accepts successful review workflow completion.
 - If review fails after pending publication, the workflow makes a best effort to publish `failure` without hiding the original error.
 - Merge failures are reported per pull request and make the sweep job fail after all candidates are processed.
@@ -76,7 +78,9 @@ Automated tests cover:
 - pending, success, and failure gate publication
 - preservation of the detailed `opencode-review` Check Run
 - latest commit-status selection and rejection of missing or non-success gates
-- refreshed status retrieval immediately before merge
+- exact workflow run/attempt correlation, including same-run reruns and stale successes
+- refreshed status and workflow-attempt retrieval immediately before merge
+- review configuration, model, and GitHub delivery failures producing a failed gate
 - continued scanning after merge failure followed by a non-zero CLI outcome
 
 The full repository test suite, type checks, and production build run after the focused regression tests pass.

@@ -462,6 +462,7 @@ async function reviewPullRequest({
   return {
     results,
     failures: results.filter((result) => result.status === "warning").map((result) => result.failure),
+    deliveryFailureCount,
     conclusion,
     markdown,
     ...(failure ? { failure } : {}),
@@ -492,6 +493,7 @@ function requiredConfiguration(args, env) {
   if (!args.head) missing.push("--head");
   if (!env.GITHUB_SERVER_URL) missing.push("GITHUB_SERVER_URL");
   if (!env.GITHUB_RUN_ID) missing.push("GITHUB_RUN_ID");
+  if (!/^[1-9]\d*$/.test(env.GITHUB_RUN_ATTEMPT ?? "")) missing.push("GITHUB_RUN_ATTEMPT");
   return missing;
 }
 
@@ -510,7 +512,7 @@ async function main(options = {}) {
     return { exitCode: 1 };
   }
 
-  const runUrl = `${env.GITHUB_SERVER_URL.replace(/\/$/, "")}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}`;
+  const runUrl = `${env.GITHUB_SERVER_URL.replace(/\/$/, "")}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}?attempt=${env.GITHUB_RUN_ATTEMPT}`;
   const mascotUrl = options.mascotUrl ?? buildMascotUrl({
     serverUrl: env.GITHUB_SERVER_URL,
     repository: env.GITHUB_REPOSITORY,
@@ -560,15 +562,20 @@ async function main(options = {}) {
     headRepository: trustedHeadRepository,
     summaryPath: options.summaryPath ?? env.GITHUB_STEP_SUMMARY,
   };
-  await githubClient.setCommitStatus({
-    sha: args.head,
-    state: "pending",
-    description: "OpenCode review is running.",
-    targetUrl: runUrl,
-  });
   try {
+    await githubClient.setCommitStatus({
+      sha: args.head,
+      state: "pending",
+      description: "OpenCode review is running.",
+      targetUrl: runUrl,
+    });
     const result = await reviewPullRequest(reviewOptions);
-    const passed = result.conclusion !== "failure";
+    const passed = (
+      result.conclusion === "success"
+      && result.failures.length === 0
+      && result.deliveryFailureCount === 0
+      && !result.failure
+    );
     await githubClient.setCommitStatus({
       sha: args.head,
       state: passed ? "success" : "failure",

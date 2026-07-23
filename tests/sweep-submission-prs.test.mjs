@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
 import {
   assertNoMergeFailures,
   GitHubClient,
   evaluatePullRequest,
+  main,
   sweepSubmissionPullRequests,
 } from "../scripts/sweep-submission-prs.mjs";
 
@@ -25,12 +29,39 @@ const successfulChecks = [
   { id: 201, name: "opencode-review", status: "completed", conclusion: "success", app: { slug: "github-actions" } },
 ];
 
+function makeSuccessfulReviewRun(sha = "abc123", id = 901, runAttempt = 1) {
+  return {
+    id,
+    run_attempt: runAttempt,
+    display_title: `opencode-review:${sha}`,
+    status: "completed",
+    conclusion: "success",
+    html_url: `https://github.com/leetdash/test/actions/runs/${id}`,
+    run_started_at: new Date(Date.UTC(2026, 0, 1) + id * 1000).toISOString(),
+  };
+}
+
+function makeSuccessfulStatus(reviewRun = makeSuccessfulReviewRun(), id = 301) {
+  return {
+    id,
+    context: "opencode-review-gate",
+    state: "success",
+    creator: { login: "github-actions[bot]" },
+    target_url: `${reviewRun.html_url}?attempt=${reviewRun.run_attempt}`,
+  };
+}
+
+const successfulReviewRuns = [makeSuccessfulReviewRun()];
 const successfulStatuses = [
-  { id: 301, context: "opencode-review-gate", state: "success", creator: { login: "github-actions[bot]" } },
+  makeSuccessfulStatus(successfulReviewRuns[0]),
 ];
 
 function evaluate(options) {
-  return evaluatePullRequest({ commitStatuses: successfulStatuses, ...options });
+  return evaluatePullRequest({
+    commitStatuses: successfulStatuses,
+    reviewWorkflowRuns: successfulReviewRuns,
+    ...options,
+  });
 }
 
 function makePullRequest(overrides = {}) {
@@ -182,6 +213,98 @@ describe("submission PR sweeper eligibility", () => {
     expect(decision).toEqual({ eligible: false, reason: "opencode-review-gate status is not successful for abc123." });
   });
 
+  it("rejects an old successful gate when a newer review workflow run failed before publishing pending", () => {
+    const decision = evaluate({
+      pullRequest: makePullRequest(),
+      files: [validFile],
+      checkRuns: [successfulChecks[0]],
+      reviewWorkflowRuns: [
+        successfulReviewRuns[0],
+        { ...makeSuccessfulReviewRun("abc123", 902), conclusion: "failure" },
+      ],
+      users,
+      catalog,
+    });
+
+    expect(decision).toEqual({ eligible: false, reason: "opencode-review-gate status is not successful for abc123." });
+  });
+
+  it("rejects an old successful gate when the latest workflow rerun has a newer attempt", () => {
+    const decision = evaluate({
+      pullRequest: makePullRequest(),
+      files: [validFile],
+      checkRuns: [successfulChecks[0]],
+      reviewWorkflowRuns: [{
+        ...makeSuccessfulReviewRun("abc123", 901, 2),
+        conclusion: "failure",
+        run_started_at: "2026-01-02T00:00:00.000Z",
+      }],
+      users,
+      catalog,
+    });
+
+    expect(decision).toEqual({ eligible: false, reason: "opencode-review-gate status is not successful for abc123." });
+  });
+
+  it("rejects a newer attempt of an older run ID when its pending status was not published", () => {
+    const successfulRun = makeSuccessfulReviewRun("abc123", 902, 1);
+    const rerun = {
+      ...makeSuccessfulReviewRun("abc123", 901, 2),
+      conclusion: "failure",
+      run_started_at: "2026-01-02T00:00:00.000Z",
+    };
+    const decision = evaluate({
+      pullRequest: makePullRequest(),
+      files: [validFile],
+      checkRuns: [successfulChecks[0]],
+      commitStatuses: [makeSuccessfulStatus(successfulRun)],
+      reviewWorkflowRuns: [successfulRun, rerun],
+      users,
+      catalog,
+    });
+
+    expect(decision).toEqual({ eligible: false, reason: "opencode-review-gate status is not successful for abc123." });
+  });
+
+  it("accepts a successful rerun when the status targets the same run attempt", () => {
+    const rerun = {
+      ...makeSuccessfulReviewRun("abc123", 901, 2),
+      run_started_at: "2026-01-02T00:00:00.000Z",
+    };
+    const decision = evaluate({
+      pullRequest: makePullRequest(),
+      files: [validFile],
+      checkRuns: [successfulChecks[0]],
+      commitStatuses: [makeSuccessfulStatus(rerun)],
+      reviewWorkflowRuns: [rerun],
+      users,
+      catalog,
+    });
+
+    expect(decision).toEqual({ eligible: true });
+  });
+
+  it.each([
+    ["queued latest run", successfulStatuses, [{ ...successfulReviewRuns[0], status: "queued", conclusion: null }]],
+    ["failed latest run", successfulStatuses, [{ ...successfulReviewRuns[0], conclusion: "failure" }]],
+    ["mismatched target URL", [{ ...successfulStatuses[0], target_url: `${successfulReviewRuns[0].html_url}?attempt=2` }], successfulReviewRuns],
+    ["malformed run attempt", successfulStatuses, [{ ...successfulReviewRuns[0], run_attempt: "1" }]],
+    ["malformed run start time", successfulStatuses, [{ ...successfulReviewRuns[0], run_started_at: "not-a-date" }]],
+    ["ambiguous latest run", successfulStatuses, [successfulReviewRuns[0], { ...successfulReviewRuns[0] }]],
+  ])("rejects a gate with %s", (_name, commitStatuses, reviewWorkflowRuns) => {
+    const decision = evaluate({
+      pullRequest: makePullRequest(),
+      files: [validFile],
+      checkRuns: [successfulChecks[0]],
+      commitStatuses,
+      reviewWorkflowRuns,
+      users,
+      catalog,
+    });
+
+    expect(decision).toEqual({ eligible: false, reason: "opencode-review-gate status is not successful for abc123." });
+  });
+
   it.each([
     ["older", { ...successfulStatuses[0], id: 300, creator: { login: "foreign-bot" } }],
     ["newer", { ...successfulStatuses[0], id: 302, creator: { login: "foreign-bot" } }],
@@ -261,17 +384,24 @@ describe("submission PR sweeper eligibility", () => {
 });
 
 class FakeGitHubClient {
-  constructor({ pullRequests, filesByNumber, checkRunsBySha, statusesBySha, failedMerges = new Set() }) {
+  constructor({ pullRequests, filesByNumber, checkRunsBySha, statusesBySha, reviewWorkflowRuns, failedMerges = new Set() }) {
     this.pullRequests = pullRequests;
     this.filesByNumber = filesByNumber;
     this.checkRunsBySha = checkRunsBySha;
+    const runsBySha = Object.fromEntries(
+      Object.keys(checkRunsBySha).map((sha, index) => [sha, makeSuccessfulReviewRun(sha, 901 + index)]),
+    );
+    this.reviewWorkflowRuns = reviewWorkflowRuns ?? Object.values(runsBySha);
+    this.workflowRunsById = Object.fromEntries(this.reviewWorkflowRuns.map((run) => [run.id, run]));
     this.statusesBySha = statusesBySha ?? Object.fromEntries(
-      Object.keys(checkRunsBySha).map((sha) => [sha, successfulStatuses]),
+      Object.entries(runsBySha).map(([sha, reviewRun]) => [sha, [makeSuccessfulStatus(reviewRun)]]),
     );
     this.failedMerges = failedMerges;
     this.pullRequestCalls = [];
     this.fileCalls = [];
     this.statusCalls = [];
+    this.workflowRunCalls = [];
+    this.workflowRunDetailCalls = [];
     this.mergeCalls = [];
     this.dispatchCalls = [];
   }
@@ -299,6 +429,16 @@ class FakeGitHubClient {
   async listCommitStatuses(sha) {
     this.statusCalls.push(sha);
     return this.statusesBySha[sha] ?? [];
+  }
+
+  async listWorkflowRuns(workflowFile) {
+    this.workflowRunCalls.push(workflowFile);
+    return this.reviewWorkflowRuns;
+  }
+
+  async getWorkflowRun(runId) {
+    this.workflowRunDetailCalls.push(runId);
+    return this.workflowRunsById[runId];
   }
 
   async mergePullRequest(number, sha) {
@@ -459,6 +599,44 @@ describe("submission PR sweeper orchestration", () => {
 });
 
 describe("submission PR sweeper CLI outcome", () => {
+  it("rejects only after scanning remaining PRs and dispatching deploy for successful merges", async () => {
+    const client = new FakeGitHubClient({
+      pullRequests: [
+        makePullRequest({ number: 7, head: { sha: "sha-7" } }),
+        makePullRequest({ number: 8, head: { sha: "sha-8" } }),
+      ],
+      filesByNumber: { 7: [validFile], 8: [validFile] },
+      checkRunsBySha: { "sha-7": successfulChecks, "sha-8": successfulChecks },
+      failedMerges: new Set([7]),
+    });
+
+    const temporaryDirectory = await mkdtemp(path.join(tmpdir(), "sweep-cli-"));
+    const summaryPath = path.join(temporaryDirectory, "summary.md");
+    try {
+      await expect(main({
+        env: {
+          GITHUB_TOKEN: "test-token",
+          GITHUB_REPOSITORY: "leetdash/test",
+          GITHUB_STEP_SUMMARY: summaryPath,
+        },
+        client,
+        users,
+        catalog,
+      })).rejects.toThrow("1 pull request failed to merge.");
+
+      const summary = await readFile(summaryPath, "utf8");
+      expect(summary).toContain("| #7 | merge_failed | Head branch was modified. |");
+      expect(summary).toContain("| #8 | merged |  |");
+      expect(client.mergeCalls).toEqual([
+        { number: 7, sha: "sha-7" },
+        { number: 8, sha: "sha-8" },
+      ]);
+      expect(client.dispatchCalls).toEqual([{ workflowFile: "deploy-pages.yml", ref: "master" }]);
+    } finally {
+      await rm(temporaryDirectory, { recursive: true, force: true });
+    }
+  });
+
   it("throws a sanitized aggregate error after one merge failure", () => {
     expect(() => assertNoMergeFailures({
       mergedCount: 1,
@@ -541,6 +719,68 @@ describe("GitHubClient check-run retrieval", () => {
     });
   });
 
+  it("fetches all OpenCode review workflow runs with pagination", async () => {
+    const originalFetch = globalThis.fetch;
+    const requests = [];
+    globalThis.fetch = async (url) => {
+      const requestUrl = new URL(url);
+      requests.push(requestUrl);
+      const page = Number(requestUrl.searchParams.get("page"));
+      const workflowRuns = page === 1
+        ? Array.from({ length: 100 }, (_, index) => makeSuccessfulReviewRun(`sha-${index}`, index + 1))
+        : [makeSuccessfulReviewRun("sha-100", 101)];
+      return new Response(JSON.stringify({ workflow_runs: workflowRuns }), { status: 200 });
+    };
+
+    try {
+      const client = new GitHubClient({ repository: "leetdash/test", token: "test-token" });
+      const workflowRuns = await client.listWorkflowRuns("opencode-review.yml");
+      expect(workflowRuns).toHaveLength(101);
+      expect(workflowRuns.at(-1)).toMatchObject({ id: 101, display_title: "opencode-review:sha-100" });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    expect(requests).toHaveLength(2);
+    requests.forEach((request, index) => {
+      expect(request.pathname).toBe("/repos/leetdash/test/actions/workflows/opencode-review.yml/runs");
+      expect(request.searchParams.get("event")).toBe("workflow_run");
+      expect(request.searchParams.get("page")).toBe(String(index + 1));
+      expect(request.searchParams.get("per_page")).toBe("100");
+    });
+  });
+
+  it("rejects a malformed OpenCode workflow-runs response", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response(JSON.stringify({ workflow_runs: null }), { status: 200 });
+
+    try {
+      const client = new GitHubClient({ repository: "leetdash/test", token: "test-token" });
+      await expect(client.listWorkflowRuns("opencode-review.yml")).rejects.toThrow("GitHub workflow runs response is malformed.");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("fetches an exact workflow run by ID", async () => {
+    const originalFetch = globalThis.fetch;
+    const reviewRun = makeSuccessfulReviewRun("sha-7", 901, 2);
+    let requestUrl;
+    globalThis.fetch = async (url) => {
+      requestUrl = new URL(url);
+      return new Response(JSON.stringify(reviewRun), { status: 200 });
+    };
+
+    try {
+      const client = new GitHubClient({ repository: "leetdash/test", token: "test-token" });
+      await expect(client.getWorkflowRun(901)).resolves.toEqual(reviewRun);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    expect(requestUrl.pathname).toBe("/repos/leetdash/test/actions/runs/901");
+  });
+
   it("re-fetches statuses immediately before merge and stops when a review rerun starts", async () => {
     const client = new FakeGitHubClient({
       pullRequests: [makePullRequest({ number: 7, head: { sha: "sha-7" } })],
@@ -564,6 +804,44 @@ describe("GitHubClient check-run retrieval", () => {
     });
     expect(client.checkRunCalls).toEqual(["sha-7", "sha-7"]);
     expect(client.statusCalls).toEqual(["sha-7", "sha-7"]);
+    expect(client.mergeCalls).toEqual([]);
+  });
+
+  it("re-fetches workflow attempts immediately before merge and rejects a stale successful gate", async () => {
+    const initialRun = makeSuccessfulReviewRun("sha-7", 901, 1);
+    const client = new FakeGitHubClient({
+      pullRequests: [makePullRequest({ number: 7, head: { sha: "sha-7" } })],
+      filesByNumber: { 7: [validFile] },
+      checkRunsBySha: { "sha-7": successfulChecks },
+      statusesBySha: { "sha-7": [makeSuccessfulStatus(initialRun)] },
+      reviewWorkflowRuns: [initialRun],
+    });
+    let workflowRunCalls = 0;
+    client.listWorkflowRuns = async (workflowFile) => {
+      client.workflowRunCalls.push(workflowFile);
+      workflowRunCalls += 1;
+      return workflowRunCalls === 1
+        ? [initialRun]
+        : [];
+    };
+    client.getWorkflowRun = async (runId) => {
+      client.workflowRunDetailCalls.push(runId);
+      return {
+        ...initialRun,
+        run_attempt: 2,
+        conclusion: "failure",
+        run_started_at: "2026-01-02T00:00:00.000Z",
+      };
+    };
+
+    const result = await sweepSubmissionPullRequests({ client, users, catalog });
+
+    expect(result).toEqual({
+      mergedCount: 0,
+      results: [{ number: 7, status: "skipped", reason: "opencode-review-gate status is not successful for sha-7." }],
+    });
+    expect(client.workflowRunCalls).toEqual(["opencode-review.yml", "opencode-review.yml"]);
+    expect(client.workflowRunDetailCalls).toEqual([901]);
     expect(client.mergeCalls).toEqual([]);
   });
 });

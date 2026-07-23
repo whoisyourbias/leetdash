@@ -44,4 +44,5 @@ jobs:
           SWEEP_REQUIRED_STATUSES: opencode-review-gate
           SWEEP_REQUIRED_CHECK_APP: github-actions
           SWEEP_REQUIRED_STATUS_CREATOR: github-actions[bot]
+          SWEEP_REVIEW_WORKFLOW: opencode-review.yml
           SWEEP_DEPLOY_WORKFLOW: deploy-pages.yml

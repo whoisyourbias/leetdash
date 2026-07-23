@@ -20,6 +20,7 @@ describe("submission sweeper workflow triggers", () => {
     expect(workflow).toContain("SWEEP_REQUIRED_STATUSES: opencode-review-gate");
     expect(workflow).toContain("SWEEP_REQUIRED_CHECK_APP: github-actions");
     expect(workflow).toContain("SWEEP_REQUIRED_STATUS_CREATOR: github-actions[bot]");
+    expect(workflow).toContain("SWEEP_REVIEW_WORKFLOW: opencode-review.yml");
     expect(workflow).not.toContain("SWEEP_REQUIRED_CHECK:");
   });
 });

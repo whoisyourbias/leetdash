@@ -4,7 +4,7 @@
 
 **Goal:** Run submission sweep only after OpenCode review publishes an unambiguous successful gate, and make merge API failures visible as failed Actions runs.
 
-**Architecture:** Keep the rich `opencode-review` Check Run for review details, and add the distinct commit-status context `opencode-review-gate` as the merge gate. The review workflow owns status publication, while the sweeper reads validation Check Runs and review commit statuses independently and refreshes both immediately before merge. Automatic sweep moves from validation completion to successful review-workflow completion.
+**Architecture:** Keep the rich `opencode-review` Check Run for review details, and add the distinct commit-status context `opencode-review-gate` as the merge gate. The review workflow owns status publication, while the sweeper reads validation Check Runs, review commit statuses, and the capped recent review-workflow ledger independently and refreshes them immediately before merge. Runs are ordered by `run_started_at`, while gate statuses identify the exact Actions run and attempt, preventing an older success from authorizing a newer failed rerun. Automatic sweep moves from validation completion to successful review-workflow completion.
 
 **Tech Stack:** GitHub Actions YAML, Node.js 20 ESM, GitHub REST API, Vitest
 
@@ -13,6 +13,7 @@
 - Preserve the detailed Check Run name `opencode-review`.
 - Use commit-status context `opencode-review-gate`; never reuse the Check Run name for the status.
 - Keep hourly and manual sweep triggers.
+- Require the successful gate to match the latest OpenCode workflow run ID and attempt for the pull-request head SHA.
 - Continue scanning other pull requests after a merge failure, then fail the sweep CLI after summary/deploy handling.
 - Never resolve or mutate human review conversations.
 - Do not migrate live branch protection until the implementation exists on the default branch.
@@ -21,11 +22,11 @@
 
 ## File Map
 
-- `.github/workflows/opencode-review.yml`: grants commit-status write permission.
-- `.github/workflows/sweep-submission-prs.yml`: triggers after successful review and configures separate required checks/statuses.
+- `.github/workflows/opencode-review.yml`: grants commit-status write permission and publishes a head-SHA run name.
+- `.github/workflows/sweep-submission-prs.yml`: triggers after successful review and configures separate required checks/statuses plus the review workflow identifier.
 - `scripts/opencode-review-clients.mjs`: publishes `opencode-review-gate` commit statuses.
-- `scripts/opencode-review.mjs`: brackets review execution with pending and terminal gate states.
-- `scripts/sweep-submission-prs.mjs`: retrieves/evaluates commit statuses and exposes merge failures to the CLI.
+- `scripts/opencode-review.mjs`: brackets review execution with attempt-aware pending and terminal gate states and fails the gate on review or delivery failure.
+- `scripts/sweep-submission-prs.mjs`: correlates commit statuses with the latest review workflow attempt and exposes merge failures to the CLI.
 - `tests/opencode-review-clients.test.mjs`: verifies exact GitHub status requests.
 - `tests/opencode-review.test.mjs`: verifies pending/success/failure status transitions.
 - `tests/opencode-review-workflow.test.ts`: verifies least-privilege status permission.

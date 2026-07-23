@@ -863,6 +863,7 @@ describe("opencode-review CLI", () => {
         GITHUB_TOKEN: "github-secret",
         GITHUB_SERVER_URL: "https://github.example",
         GITHUB_RUN_ID: "9",
+        GITHUB_RUN_ATTEMPT: "1",
         OPENCODE_API_KEY: "opencode-secret",
         OPENCODE_REVIEW_MODEL: "opencode-go/kimi-k2.7-code",
       },
@@ -872,7 +873,7 @@ describe("opencode-review CLI", () => {
       users,
     });
 
-    expect(outcome.exitCode).toBe(0);
+    expect(outcome).toMatchObject({ exitCode: 0 });
     expect(sourceReads).toEqual([{ path: firstPath, ref: headSha, repository: "fork-user/leetdash" }]);
     expect(prompts[0]).toContain(source);
     expect(comments[0].body).toContain(`https://github.example/fork-user/leetdash/blob/${headSha}/${firstPath}`);
@@ -883,13 +884,13 @@ describe("opencode-review CLI", () => {
         sha: headSha,
         state: "pending",
         description: "OpenCode review is running.",
-        targetUrl: "https://github.example/example/leetdash/actions/runs/9",
+        targetUrl: "https://github.example/example/leetdash/actions/runs/9?attempt=1",
       },
       {
         sha: headSha,
         state: "success",
         description: "OpenCode review passed.",
-        targetUrl: "https://github.example/example/leetdash/actions/runs/9",
+        targetUrl: "https://github.example/example/leetdash/actions/runs/9?attempt=1",
       },
     ]);
   });
@@ -915,6 +916,7 @@ describe("opencode-review CLI", () => {
         GITHUB_TOKEN: "github-secret",
         GITHUB_SERVER_URL: "https://github.example",
         GITHUB_RUN_ID: "9",
+        GITHUB_RUN_ATTEMPT: "1",
       },
       githubClient,
       openCodeClient: { review: async () => { reviewCalls += 1; } },
@@ -927,12 +929,13 @@ describe("opencode-review CLI", () => {
     expect(reviewCalls).toBe(0);
   });
 
-  it("completes a warning check successfully when a submission review lacks OpenCode configuration", async () => {
+  it("fails the review gate when a submission review lacks OpenCode configuration", async () => {
     const completed = [];
+    const statuses = [];
     const githubClient = {
       createCheck: async () => ({ id: 17 }),
       completeCheck: async (value) => { completed.push(value); },
-      setCommitStatus: async () => {},
+      setCommitStatus: async (value) => { statuses.push(value); },
       listManagedReviewComments: async () => [],
       upsertReviewComment: async () => {},
       deleteReviewComment: async () => {},
@@ -949,6 +952,7 @@ describe("opencode-review CLI", () => {
         GITHUB_TOKEN: "github-secret",
         GITHUB_SERVER_URL: "https://github.example",
         GITHUB_RUN_ID: "9",
+        GITHUB_RUN_ATTEMPT: "1",
       },
       githubClient,
       openCodeClient: { review: async () => { throw new Error("must not run"); } },
@@ -956,14 +960,15 @@ describe("opencode-review CLI", () => {
       users,
     });
 
-    expect(outcome.exitCode).toBe(0);
+    expect(outcome.exitCode).toBe(1);
     expect(completed[0]).toMatchObject({ conclusion: "success" });
     expect(completed[0].summary).toContain("MODEL_REQUEST_FAILED");
+    expect(statuses.map(({ state }) => state)).toEqual(["pending", "failure"]);
   });
 
   it.each(["true", "false", "yes"])("rejects the deprecated --submission-only %s path", async (value) => {
     let calls = 0;
-    const env = { GITHUB_REPOSITORY: "example/leetdash", GITHUB_TOKEN: "github-secret", GITHUB_SERVER_URL: "https://github.example", GITHUB_RUN_ID: "9" };
+    const env = { GITHUB_REPOSITORY: "example/leetdash", GITHUB_TOKEN: "github-secret", GITHUB_SERVER_URL: "https://github.example", GITHUB_RUN_ID: "9", GITHUB_RUN_ATTEMPT: "1" };
 
     await expect(main({
       argv: ["--base", "base", "--head", "head", "--pull-number", "42", "--submission-only", value],
@@ -973,11 +978,53 @@ describe("opencode-review CLI", () => {
     expect(calls).toBe(0);
   });
 
-  it.each([
-    ["possible code risk", { review: async () => failResult(firstPath) }],
-    ["handled model failure", { review: async () => { throw new ReviewFailure({ stage: "model-request", reason: "MODEL_REQUEST_FAILED", detail: "safe" }); } }],
-  ])("returns zero after completing an informational %s check", async (_name, openCodeClient) => {
-    const { options, completed } = reviewOptions();
+  it.each([undefined, "0", "-1", "not-a-number"])("rejects an invalid workflow run attempt %s before review", async (runAttempt) => {
+    let calls = 0;
+    const env = {
+      GITHUB_REPOSITORY: "example/leetdash",
+      GITHUB_TOKEN: "github-secret",
+      GITHUB_SERVER_URL: "https://github.example",
+      GITHUB_RUN_ID: "9",
+      ...(runAttempt === undefined ? {} : { GITHUB_RUN_ATTEMPT: runAttempt }),
+    };
+
+    await expect(main({
+      argv: ["--base", "base", "--head", "head", "--pull-number", "42"],
+      env,
+      githubClient: { setCommitStatus: async () => { calls += 1; } },
+    })).resolves.toMatchObject({ exitCode: 1 });
+    expect(calls).toBe(0);
+  });
+
+  it("returns zero after completing an informational review with a possible code risk", async () => {
+    const { options, completed, statuses } = reviewOptions();
+
+    const outcome = await main({
+      mascotUrl,
+      argv: ["--base", "base", "--head", "a".repeat(40), "--pull-number", "42"],
+      env: {
+        GITHUB_REPOSITORY: "example/leetdash",
+        GITHUB_TOKEN: "github-secret",
+        GITHUB_SERVER_URL: "https://github.example",
+        GITHUB_RUN_ID: "9",
+        GITHUB_RUN_ATTEMPT: "1",
+        OPENCODE_API_KEY: "opencode-secret",
+        OPENCODE_REVIEW_MODEL: "opencode-go/kimi-k2.7-code",
+      },
+      loadReviewScope: async () => ({ submissionOnly: true, changedFiles: [{ status: "A", path: firstPath }] }),
+      githubClient: options.githubClient,
+      openCodeClient: { review: async () => failResult(firstPath) },
+      catalog,
+      readFile: options.readFile,
+    });
+
+    expect(outcome.exitCode).toBe(0);
+    expect(completed[0].conclusion).toBe("success");
+    expect(statuses.map(({ state }) => state)).toEqual(["pending", "success"]);
+  });
+
+  it("fails the review gate after a handled model failure", async () => {
+    const { options, completed, statuses } = reviewOptions();
 
     const outcome = await main({
       mascotUrl,
@@ -987,22 +1034,53 @@ describe("opencode-review CLI", () => {
         GITHUB_TOKEN: "github-secret",
         GITHUB_SERVER_URL: "https://github.example",
         GITHUB_RUN_ID: "9",
+        GITHUB_RUN_ATTEMPT: "1",
         OPENCODE_API_KEY: "opencode-secret",
         OPENCODE_REVIEW_MODEL: "opencode-go/kimi-k2.7-code",
       },
       loadReviewScope: async () => ({ submissionOnly: true, changedFiles: [{ status: "A", path: firstPath }] }),
       githubClient: options.githubClient,
-      openCodeClient,
+      openCodeClient: { review: async () => { throw new ReviewFailure({ stage: "model-request", reason: "MODEL_REQUEST_FAILED", detail: "safe" }); } },
       catalog,
       readFile: options.readFile,
     });
 
-    expect(outcome.exitCode).toBe(0);
+    expect(outcome.exitCode).toBe(1);
     expect(completed[0].conclusion).toBe("success");
+    expect(statuses.map(({ state }) => state)).toEqual(["pending", "failure"]);
+  });
+
+  it("fails the review gate when GitHub comment delivery is incomplete", async () => {
+    const { options, statuses } = reviewOptions();
+    options.githubClient.upsertReviewComment = async () => {
+      throw new GitHubDeliveryFailure({ httpStatus: 503, requestId: "delivery-secret" });
+    };
+
+    const outcome = await main({
+      mascotUrl,
+      argv: ["--base", "base", "--head", "head", "--pull-number", "42"],
+      env: {
+        GITHUB_REPOSITORY: "example/leetdash",
+        GITHUB_TOKEN: "github-secret",
+        GITHUB_SERVER_URL: "https://github.example",
+        GITHUB_RUN_ID: "9",
+        GITHUB_RUN_ATTEMPT: "1",
+        OPENCODE_API_KEY: "opencode-secret",
+        OPENCODE_REVIEW_MODEL: "opencode-go/kimi-k2.7-code",
+      },
+      loadReviewScope: async () => ({ submissionOnly: true, changedFiles: [{ status: "A", path: firstPath }] }),
+      githubClient: options.githubClient,
+      openCodeClient: options.openCodeClient,
+      catalog,
+      readFile: options.readFile,
+    });
+
+    expect(outcome.exitCode).toBe(1);
+    expect(statuses.map(({ state }) => state)).toEqual(["pending", "failure"]);
   });
 
   it("exits nonzero after safely completing a changed-file discovery failure", async () => {
-    const { options, completed } = reviewOptions();
+    const { options, completed, statuses } = reviewOptions();
     const calls = [];
     const rawFailure = "changed-files-secret";
     options.githubClient.createCheck = async () => { calls.push("check"); return { id: 17 }; };
@@ -1015,6 +1093,7 @@ describe("opencode-review CLI", () => {
         GITHUB_TOKEN: "github-secret",
         GITHUB_SERVER_URL: "https://github.example",
         GITHUB_RUN_ID: "9",
+        GITHUB_RUN_ATTEMPT: "1",
         OPENCODE_API_KEY: "opencode-secret",
         OPENCODE_REVIEW_MODEL: "opencode-go/kimi-k2.7-code",
       },
@@ -1029,6 +1108,7 @@ describe("opencode-review CLI", () => {
     expect(completed[0].conclusion).toBe("failure");
     expect(completed[0].summary).toContain("변경된 제출 파일 목록을 가져오지 못했습니다.");
     expect(completed[0].summary).not.toContain(rawFailure);
+    expect(statuses.map(({ state }) => state)).toEqual(["pending", "failure"]);
   });
 
   it("preserves the original review error when publishing the failure gate also fails", async () => {
@@ -1054,6 +1134,7 @@ describe("opencode-review CLI", () => {
         GITHUB_TOKEN: "github-secret",
         GITHUB_SERVER_URL: "https://github.example",
         GITHUB_RUN_ID: "9",
+        GITHUB_RUN_ATTEMPT: "1",
       },
       loadReviewScope: async () => ({ submissionOnly: false, changedFiles: [] }),
       githubClient,
@@ -1066,14 +1147,46 @@ describe("opencode-review CLI", () => {
         sha: "head",
         state: "pending",
         description: "OpenCode review is running.",
-        targetUrl: "https://github.example/example/leetdash/actions/runs/9",
+        targetUrl: "https://github.example/example/leetdash/actions/runs/9?attempt=1",
       },
       {
         sha: "head",
         state: "failure",
         description: "OpenCode review failed.",
-        targetUrl: "https://github.example/example/leetdash/actions/runs/9",
+        targetUrl: "https://github.example/example/leetdash/actions/runs/9?attempt=1",
       },
     ]);
+  });
+
+  it("attempts a failure gate and never starts review when the pending gate cannot be published", async () => {
+    const pendingFailure = new Error("pending delivery failed");
+    const statuses = [];
+    let reviewCalls = 0;
+    const githubClient = {
+      setCommitStatus: async (value) => {
+        statuses.push(value);
+        if (value.state === "pending") throw pendingFailure;
+      },
+      createCheck: async () => { reviewCalls += 1; },
+    };
+
+    await expect(main({
+      mascotUrl,
+      argv: ["--base", "base", "--head", "head", "--pull-number", "42"],
+      env: {
+        GITHUB_REPOSITORY: "example/leetdash",
+        GITHUB_TOKEN: "github-secret",
+        GITHUB_SERVER_URL: "https://github.example",
+        GITHUB_RUN_ID: "9",
+        GITHUB_RUN_ATTEMPT: "2",
+      },
+      githubClient,
+      catalog,
+      users,
+    })).rejects.toBe(pendingFailure);
+
+    expect(reviewCalls).toBe(0);
+    expect(statuses.map(({ state }) => state)).toEqual(["pending", "failure"]);
+    expect(statuses.every(({ targetUrl }) => targetUrl.endsWith("/actions/runs/9?attempt=2"))).toBe(true);
   });
 });

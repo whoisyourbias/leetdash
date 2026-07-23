@@ -15,6 +15,7 @@ describe("trusted OpenCode review workflow", () => {
 
     expect(workflow).toContain("workflow_run:");
     expect(workflow).toContain('workflows: ["Deploy GitHub Pages"]');
+    expect(workflow).toContain("run-name: opencode-review:${{ github.event.workflow_run.head_sha }}");
     expect(workflow).toContain("types:\n      - completed");
     expect(workflow).toContain("github.event.workflow_run.event == 'pull_request'");
     expect(workflow).toContain("github.event.workflow_run.conclusion == 'success'");
