@@ -9,9 +9,13 @@ import {
 } from "./validate-submission-pr.mjs";
 
 const defaultBaseBranch = "master";
-const defaultRequiredChecks = ["validate", "opencode-review"];
+const defaultRequiredChecks = ["validate"];
+const defaultRequiredStatuses = ["opencode-review-gate"];
 const defaultRequiredCheckApp = "github-actions";
+const defaultRequiredStatusCreator = "github-actions[bot]";
+const defaultReviewWorkflow = "opencode-review.yml";
 const defaultDeployWorkflow = "deploy-pages.yml";
+const maxWorkflowRunPages = 10;
 
 function readJson(relativePath) {
   return JSON.parse(readFileSync(path.join(process.cwd(), relativePath), "utf8"));
@@ -44,21 +48,87 @@ function hasSuccessfulCheckRun(checkRuns, checkName, expectedApp) {
   return checkRun?.status === "completed" && checkRun?.conclusion === "success";
 }
 
-function normalizeRequiredChecks(requiredChecks = defaultRequiredChecks) {
-  const values = Array.isArray(requiredChecks) ? requiredChecks : [requiredChecks];
+function selectLatestCommitStatus(commitStatuses, context, expectedCreator) {
+  const exactContextStatuses = commitStatuses.filter((status) => status?.context === context);
+  if (exactContextStatuses.some((status) => typeof status?.creator?.login !== "string")) return undefined;
+  const trustedStatuses = exactContextStatuses.filter((status) => status.creator.login === expectedCreator);
+  if (
+    trustedStatuses.length === 0
+    || trustedStatuses.some((status) => !Number.isSafeInteger(status.id))
+  ) {
+    return undefined;
+  }
+  const latestId = Math.max(...trustedStatuses.map((status) => status.id));
+  const latestStatuses = trustedStatuses.filter((status) => status.id === latestId);
+  return latestStatuses.length === 1 ? latestStatuses[0] : undefined;
+}
+
+function selectLatestReviewWorkflowRun(reviewWorkflowRuns, headSha) {
+  const displayTitle = `opencode-review:${headSha}`;
+  const exactRuns = reviewWorkflowRuns.filter((run) => run?.display_title === displayTitle);
+  const startedAtValues = exactRuns.map((run) => Date.parse(run?.run_started_at));
+  if (
+    exactRuns.length === 0
+    || exactRuns.some((run, index) => (
+      !Number.isSafeInteger(run.id)
+      || run.id <= 0
+      || !Number.isSafeInteger(run.run_attempt)
+      || run.run_attempt <= 0
+      || typeof run.html_url !== "string"
+      || typeof run.run_started_at !== "string"
+      || !Number.isFinite(startedAtValues[index])
+    ))
+  ) {
+    return undefined;
+  }
+  const latestStartedAt = Math.max(...startedAtValues);
+  const latestRuns = exactRuns.filter((_run, index) => startedAtValues[index] === latestStartedAt);
+  return latestRuns.length === 1 ? latestRuns[0] : undefined;
+}
+
+function mergeReviewWorkflowRuns(previousRuns, refreshedRuns) {
+  const malformedRuns = refreshedRuns.filter((run) => !Number.isSafeInteger(run?.id));
+  const refreshedById = new Map();
+  for (const run of refreshedRuns) {
+    if (Number.isSafeInteger(run?.id)) refreshedById.set(run.id, run);
+  }
+  return [
+    ...malformedRuns,
+    ...refreshedById.values(),
+    ...previousRuns.filter((run) => !refreshedById.has(run?.id)),
+  ];
+}
+
+function hasSuccessfulCommitStatus(commitStatuses, context, expectedCreator, reviewWorkflowRuns, headSha) {
+  const status = selectLatestCommitStatus(commitStatuses, context, expectedCreator);
+  const reviewRun = selectLatestReviewWorkflowRun(reviewWorkflowRuns, headSha);
+  return (
+    status?.state === "success"
+    && reviewRun?.status === "completed"
+    && reviewRun?.conclusion === "success"
+    && status.target_url === `${reviewRun.html_url}?attempt=${reviewRun.run_attempt}`
+  );
+}
+
+function normalizeRequiredValues(requiredValues, fallback) {
+  const values = Array.isArray(requiredValues) ? requiredValues : [requiredValues];
   const normalized = values.flatMap((value) => String(value).split(",")).map((value) => value.trim()).filter(Boolean);
-  return normalized.length > 0 ? normalized : defaultRequiredChecks;
+  return normalized.length > 0 ? normalized : fallback;
 }
 
 function evaluatePullRequest({
   pullRequest,
   files,
   checkRuns,
+  commitStatuses,
+  reviewWorkflowRuns,
   users,
   catalog,
   baseBranch = defaultBaseBranch,
   requiredChecks = defaultRequiredChecks,
+  requiredStatuses = defaultRequiredStatuses,
   requiredCheckApp = defaultRequiredCheckApp,
+  requiredStatusCreator = defaultRequiredStatusCreator,
 }) {
   if (pullRequest.base?.ref !== baseBranch) {
     return { eligible: false, reason: `base branch is ${pullRequest.base?.ref ?? "unknown"}, not ${baseBranch}.` };
@@ -86,9 +156,15 @@ function evaluatePullRequest({
     return { eligible: false, reason: "pull request has merge conflicts." };
   }
 
-  for (const requiredCheck of normalizeRequiredChecks(requiredChecks)) {
+  for (const requiredCheck of normalizeRequiredValues(requiredChecks, defaultRequiredChecks)) {
     if (!hasSuccessfulCheckRun(checkRuns, requiredCheck, requiredCheckApp)) {
       return { eligible: false, reason: `${requiredCheck} check is not successful for ${headSha}.` };
+    }
+  }
+
+  for (const requiredStatus of normalizeRequiredValues(requiredStatuses, defaultRequiredStatuses)) {
+    if (!hasSuccessfulCommitStatus(commitStatuses, requiredStatus, requiredStatusCreator, reviewWorkflowRuns, headSha)) {
+      return { eligible: false, reason: `${requiredStatus} status is not successful for ${headSha}.` };
     }
   }
 
@@ -175,6 +251,23 @@ class GitHubClient {
     }
   }
 
+  async paginateWorkflowRuns(workflowFile, { maxPages = maxWorkflowRunPages } = {}) {
+    const items = [];
+    for (let page = 1; page <= maxPages; page += 1) {
+      const pageResult = await this.request("GET", `/actions/workflows/${workflowFile}/runs`, {
+        params: { event: "workflow_run", page, per_page: 100 },
+      });
+      if (!Array.isArray(pageResult?.workflow_runs)) {
+        throw new Error("GitHub workflow runs response is malformed.");
+      }
+      items.push(...pageResult.workflow_runs);
+      if (pageResult.workflow_runs.length < 100) {
+        return items;
+      }
+    }
+    return items;
+  }
+
   listOpenPullRequests(baseBranch) {
     return this.paginateArray("/pulls", {
       base: baseBranch,
@@ -194,6 +287,18 @@ class GitHubClient {
 
   listCheckRuns(sha) {
     return this.paginateCheckRuns(sha);
+  }
+
+  listCommitStatuses(sha) {
+    return this.paginateArray(`/commits/${sha}/statuses`);
+  }
+
+  listWorkflowRuns(workflowFile, options) {
+    return this.paginateWorkflowRuns(workflowFile, options);
+  }
+
+  getWorkflowRun(runId) {
+    return this.request("GET", `/actions/runs/${runId}`);
   }
 
   mergePullRequest(number, sha) {
@@ -218,11 +323,16 @@ async function sweepSubmissionPullRequests({
   catalog,
   baseBranch = defaultBaseBranch,
   requiredChecks = defaultRequiredChecks,
+  requiredStatuses = defaultRequiredStatuses,
   requiredCheckApp = defaultRequiredCheckApp,
+  requiredStatusCreator = defaultRequiredStatusCreator,
+  reviewWorkflow = defaultReviewWorkflow,
   deployWorkflow = defaultDeployWorkflow,
 }) {
   const pullRequests = await client.listOpenPullRequests(baseBranch);
-  const normalizedRequiredChecks = normalizeRequiredChecks(requiredChecks);
+  const reviewWorkflowRuns = await client.listWorkflowRuns(reviewWorkflow);
+  const normalizedRequiredChecks = normalizeRequiredValues(requiredChecks, defaultRequiredChecks);
+  const normalizedRequiredStatuses = normalizeRequiredValues(requiredStatuses, defaultRequiredStatuses);
   const results = [];
   let mergedCount = 0;
 
@@ -230,15 +340,20 @@ async function sweepSubmissionPullRequests({
     const pullRequest = await client.getPullRequest(pullRequestSummary.number);
     const files = await client.listPullRequestFiles(pullRequest.number);
     const checkRuns = await client.listCheckRuns(pullRequest.head.sha);
+    const commitStatuses = await client.listCommitStatuses(pullRequest.head.sha);
     const decision = evaluatePullRequest({
       pullRequest,
       files,
       checkRuns,
+      commitStatuses,
+      reviewWorkflowRuns,
       users,
       catalog,
       baseBranch,
       requiredChecks: normalizedRequiredChecks,
+      requiredStatuses: normalizedRequiredStatuses,
       requiredCheckApp,
+      requiredStatusCreator,
     });
 
     if (!decision.eligible) {
@@ -251,15 +366,34 @@ async function sweepSubmissionPullRequests({
     const refreshedFiles = await client.listPullRequestFiles(pullRequestSummary.number);
     const refreshedHeadSha = refreshedPullRequest?.head?.sha;
     const refreshedCheckRuns = refreshedHeadSha ? await client.listCheckRuns(refreshedHeadSha) : [];
+    const refreshedCommitStatuses = refreshedHeadSha ? await client.listCommitStatuses(refreshedHeadSha) : [];
+    const knownReviewRuns = refreshedHeadSha
+      ? reviewWorkflowRuns.filter((run) => run?.display_title === `opencode-review:${refreshedHeadSha}`)
+      : [];
+    const refreshedKnownReviewRuns = await Promise.all(
+      knownReviewRuns
+        .filter((run) => Number.isSafeInteger(run?.id))
+        .map((run) => client.getWorkflowRun(run.id)),
+    );
+    const recentReviewWorkflowRuns = refreshedHeadSha
+      ? await client.listWorkflowRuns(reviewWorkflow, { maxPages: 1 })
+      : [];
+    const refreshedReviewWorkflowRuns = refreshedHeadSha
+      ? mergeReviewWorkflowRuns(reviewWorkflowRuns, [...recentReviewWorkflowRuns, ...refreshedKnownReviewRuns])
+      : [];
     const refreshedDecision = evaluatePullRequest({
       pullRequest: refreshedPullRequest,
       files: refreshedFiles,
       checkRuns: refreshedCheckRuns,
+      commitStatuses: refreshedCommitStatuses,
+      reviewWorkflowRuns: refreshedReviewWorkflowRuns,
       users,
       catalog,
       baseBranch,
       requiredChecks: normalizedRequiredChecks,
+      requiredStatuses: normalizedRequiredStatuses,
       requiredCheckApp,
+      requiredStatusCreator,
     });
     if (!refreshedDecision.eligible) {
       console.log(`#${pullRequest.number} skipped: ${refreshedDecision.reason}`);
@@ -287,8 +421,8 @@ async function sweepSubmissionPullRequests({
   return { mergedCount, results };
 }
 
-function appendStepSummary(result) {
-  if (!process.env.GITHUB_STEP_SUMMARY) {
+function appendStepSummary(result, summaryPath = process.env.GITHUB_STEP_SUMMARY) {
+  if (!summaryPath) {
     return;
   }
 
@@ -302,12 +436,20 @@ function appendStepSummary(result) {
     ...result.results.map((item) => `| #${item.number} | ${item.status} | ${item.reason ?? ""} |`),
     "",
   ];
-  appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join("\n")}\n`);
+  appendFileSync(summaryPath, `${lines.join("\n")}\n`);
 }
 
-async function main() {
-  const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
-  const repository = process.env.GITHUB_REPOSITORY;
+function assertNoMergeFailures(result) {
+  const count = result.results.filter((item) => item.status === "merge_failed").length;
+  if (count > 0) {
+    throw new Error(`${count} pull request${count === 1 ? "" : "s"} failed to merge.`);
+  }
+}
+
+async function main(options = {}) {
+  const env = options.env ?? process.env;
+  const token = env.GH_TOKEN ?? env.GITHUB_TOKEN;
+  const repository = env.GITHUB_REPOSITORY;
   if (!token) {
     throw new Error("GH_TOKEN or GITHUB_TOKEN is required.");
   }
@@ -315,23 +457,30 @@ async function main() {
     throw new Error("GITHUB_REPOSITORY is required.");
   }
 
-  const baseBranch = process.env.SWEEP_BASE_BRANCH ?? defaultBaseBranch;
-  const requiredChecks = process.env.SWEEP_REQUIRED_CHECKS ?? defaultRequiredChecks;
-  const requiredCheckApp = process.env.SWEEP_REQUIRED_CHECK_APP ?? defaultRequiredCheckApp;
-  const deployWorkflow = process.env.SWEEP_DEPLOY_WORKFLOW ?? defaultDeployWorkflow;
-  const client = new GitHubClient({ repository, token });
-  const users = readJson("data/users.json");
-  const catalog = readJson("data/problem-catalog.json");
+  const baseBranch = env.SWEEP_BASE_BRANCH ?? defaultBaseBranch;
+  const requiredChecks = env.SWEEP_REQUIRED_CHECKS ?? defaultRequiredChecks;
+  const requiredStatuses = env.SWEEP_REQUIRED_STATUSES ?? defaultRequiredStatuses;
+  const requiredCheckApp = env.SWEEP_REQUIRED_CHECK_APP ?? defaultRequiredCheckApp;
+  const requiredStatusCreator = env.SWEEP_REQUIRED_STATUS_CREATOR ?? defaultRequiredStatusCreator;
+  const reviewWorkflow = env.SWEEP_REVIEW_WORKFLOW ?? defaultReviewWorkflow;
+  const deployWorkflow = env.SWEEP_DEPLOY_WORKFLOW ?? defaultDeployWorkflow;
+  const client = options.client ?? new GitHubClient({ repository, token });
+  const users = options.users ?? readJson("data/users.json");
+  const catalog = options.catalog ?? readJson("data/problem-catalog.json");
   const result = await sweepSubmissionPullRequests({
     client,
     users,
     catalog,
     baseBranch,
     requiredChecks,
+    requiredStatuses,
     requiredCheckApp,
+    requiredStatusCreator,
+    reviewWorkflow,
     deployWorkflow,
   });
-  appendStepSummary(result);
+  appendStepSummary(result, env.GITHUB_STEP_SUMMARY);
+  assertNoMergeFailures(result);
 }
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";
@@ -342,4 +491,11 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
   });
 }
 
-export { GitHubClient, evaluatePullRequest, selectLatestCheckRun, sweepSubmissionPullRequests };
+export {
+  assertNoMergeFailures,
+  GitHubClient,
+  evaluatePullRequest,
+  main,
+  selectLatestCheckRun,
+  sweepSubmissionPullRequests,
+};

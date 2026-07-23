@@ -2,7 +2,7 @@ name: Sweep Submission PRs
 
 on:
   workflow_run:
-    workflows: ["Deploy GitHub Pages"]
+    workflows: ["OpenCode Submission Review"]
     types:
       - completed
   schedule:
@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   sweep:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.event == 'pull_request'
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout default branch
@@ -40,6 +40,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SWEEP_BASE_BRANCH: master
-          SWEEP_REQUIRED_CHECKS: validate,opencode-review
+          SWEEP_REQUIRED_CHECKS: validate
+          SWEEP_REQUIRED_STATUSES: opencode-review-gate
           SWEEP_REQUIRED_CHECK_APP: github-actions
+          SWEEP_REQUIRED_STATUS_CREATOR: github-actions[bot]
+          SWEEP_REVIEW_WORKFLOW: opencode-review.yml
           SWEEP_DEPLOY_WORKFLOW: deploy-pages.yml

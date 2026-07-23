@@ -220,6 +220,35 @@ describe("GitHubReviewClient", () => {
     });
   });
 
+  it("publishes the dedicated review gate as a commit status", async () => {
+    const requests = [];
+    const client = new GitHubReviewClient({
+      repository: "example/leetdash",
+      token: "github-secret",
+      fetchImpl: async (url, init) => {
+        requests.push({ url: String(url), init });
+        return jsonResponse({ id: 92 });
+      },
+    });
+
+    await expect(client.setCommitStatus({
+      sha: "head-123",
+      state: "pending",
+      description: "OpenCode review is running.",
+      targetUrl: "https://github.example/example/leetdash/actions/runs/9",
+    })).resolves.toEqual({ id: 92 });
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0].url).toBe("https://api.github.com/repos/example/leetdash/statuses/head-123");
+    expect(requests[0].init.method).toBe("POST");
+    expect(JSON.parse(requests[0].init.body)).toEqual({
+      context: "opencode-review-gate",
+      state: "pending",
+      description: "OpenCode review is running.",
+      target_url: "https://github.example/example/leetdash/actions/runs/9",
+    });
+  });
+
   it("paginates and discovers only managed GitHub Actions comments", async () => {
     const requests = [];
     const reviewPath = "submissions/ada/programmers/12906/solution.java";

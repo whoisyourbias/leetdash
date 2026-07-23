@@ -213,6 +213,17 @@ class GitHubReviewClient {
     });
   }
 
+  setCommitStatus({ sha, state, description, targetUrl }) {
+    return this.request("POST", `/statuses/${sha}`, {
+      body: {
+        context: "opencode-review-gate",
+        state,
+        description,
+        target_url: targetUrl,
+      },
+    });
+  }
+
   getPullRequest(pullNumber) {
     return this.request("GET", `/pulls/${pullNumber}`);
   }
