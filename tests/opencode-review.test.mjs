@@ -56,13 +56,16 @@ function failResult() {
 function reviewOptions(overrides = {}) {
   const completed = [];
   const comments = [];
+  const statuses = [];
   return {
     completed,
     comments,
+    statuses,
     options: {
       githubClient: {
         createCheck: async () => ({ id: 17 }),
         completeCheck: async (value) => { completed.push(value); },
+        setCommitStatus: async (value) => { statuses.push(value); },
         listManagedReviewComments: async () => [],
         upsertReviewComment: async (value) => { comments.push(value); },
         deleteReviewComment: async () => {},
@@ -835,6 +838,7 @@ describe("opencode-review CLI", () => {
   it("derives applicability from GitHub and reads submitted source only at the exact head SHA", async () => {
     const checks = [];
     const comments = [];
+    const statuses = [];
     const sourceReads = [];
     const prompts = [];
     const source = "class Solution { int fetchedAsData; }";
@@ -842,6 +846,7 @@ describe("opencode-review CLI", () => {
     const githubClient = {
       createCheck: async (value) => { checks.push(value); return { id: 17 }; },
       completeCheck: async (value) => { checks.push(value); },
+      setCommitStatus: async (value) => { statuses.push(value); },
       listManagedReviewComments: async () => [],
       upsertReviewComment: async (value) => { comments.push(value); },
       deleteReviewComment: async () => {},
@@ -873,6 +878,20 @@ describe("opencode-review CLI", () => {
     expect(comments[0].body).toContain(`https://github.example/fork-user/leetdash/blob/${headSha}/${firstPath}`);
     expect(checks[0]).toMatchObject({ headSha });
     expect(checks.at(-1)).toMatchObject({ conclusion: "success" });
+    expect(statuses).toEqual([
+      {
+        sha: headSha,
+        state: "pending",
+        description: "OpenCode review is running.",
+        targetUrl: "https://github.example/example/leetdash/actions/runs/9",
+      },
+      {
+        sha: headSha,
+        state: "success",
+        description: "OpenCode review passed.",
+        targetUrl: "https://github.example/example/leetdash/actions/runs/9",
+      },
+    ]);
   });
 
   it("derives not-applicable status from ordinary GitHub file data without OpenCode configuration", async () => {
@@ -881,6 +900,7 @@ describe("opencode-review CLI", () => {
     const githubClient = {
       createCheck: async () => ({ id: 17 }),
       completeCheck: async (value) => { completed.push(value); },
+      setCommitStatus: async () => {},
       upsertReviewComment: async () => { reviewCalls += 1; },
       getPullRequest: async () => ({ number: 42, changed_files: 1, user: { login: "ada" }, base: { sha: "base-sha" }, head: { sha: "head-sha", repo: { full_name: "example/leetdash" } } }),
       listPullRequestFiles: async () => [{ status: "modified", filename: "app/page.tsx" }],
@@ -912,6 +932,7 @@ describe("opencode-review CLI", () => {
     const githubClient = {
       createCheck: async () => ({ id: 17 }),
       completeCheck: async (value) => { completed.push(value); },
+      setCommitStatus: async () => {},
       listManagedReviewComments: async () => [],
       upsertReviewComment: async () => {},
       deleteReviewComment: async () => {},
@@ -1008,5 +1029,51 @@ describe("opencode-review CLI", () => {
     expect(completed[0].conclusion).toBe("failure");
     expect(completed[0].summary).toContain("변경된 제출 파일 목록을 가져오지 못했습니다.");
     expect(completed[0].summary).not.toContain(rawFailure);
+  });
+
+  it("preserves the original review error when publishing the failure gate also fails", async () => {
+    const originalFailure = new Error("check completion failed");
+    const statuses = [];
+    const githubClient = {
+      createCheck: async () => ({ id: 17 }),
+      completeCheck: async () => { throw originalFailure; },
+      setCommitStatus: async (value) => {
+        statuses.push(value);
+        if (value.state === "failure") throw new Error("status delivery failed");
+      },
+      listManagedReviewComments: async () => [],
+      upsertReviewComment: async () => {},
+      deleteReviewComment: async () => {},
+    };
+
+    await expect(main({
+      mascotUrl,
+      argv: ["--base", "base", "--head", "head", "--pull-number", "42"],
+      env: {
+        GITHUB_REPOSITORY: "example/leetdash",
+        GITHUB_TOKEN: "github-secret",
+        GITHUB_SERVER_URL: "https://github.example",
+        GITHUB_RUN_ID: "9",
+      },
+      loadReviewScope: async () => ({ submissionOnly: false, changedFiles: [] }),
+      githubClient,
+      catalog,
+      users,
+    })).rejects.toBe(originalFailure);
+
+    expect(statuses).toEqual([
+      {
+        sha: "head",
+        state: "pending",
+        description: "OpenCode review is running.",
+        targetUrl: "https://github.example/example/leetdash/actions/runs/9",
+      },
+      {
+        sha: "head",
+        state: "failure",
+        description: "OpenCode review failed.",
+        targetUrl: "https://github.example/example/leetdash/actions/runs/9",
+      },
+    ]);
   });
 });

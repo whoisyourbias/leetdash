@@ -541,7 +541,7 @@ async function main(options = {}) {
     if (typeof scope?.headRepository === "string") trustedHeadRepository = scope.headRepository;
     return scope;
   };
-  const result = await reviewPullRequest({
+  const reviewOptions = {
     githubClient,
     openCodeClient: options.openCodeClient ?? new OpenCodeClient(),
     readFile: options.readFile ?? ((filePath) => githubClient.getFileContent({
@@ -559,8 +559,36 @@ async function main(options = {}) {
     serverUrl: env.GITHUB_SERVER_URL,
     headRepository: trustedHeadRepository,
     summaryPath: options.summaryPath ?? env.GITHUB_STEP_SUMMARY,
+  };
+  await githubClient.setCommitStatus({
+    sha: args.head,
+    state: "pending",
+    description: "OpenCode review is running.",
+    targetUrl: runUrl,
   });
-  return { exitCode: result.conclusion === "failure" ? 1 : 0, result };
+  try {
+    const result = await reviewPullRequest(reviewOptions);
+    const passed = result.conclusion !== "failure";
+    await githubClient.setCommitStatus({
+      sha: args.head,
+      state: passed ? "success" : "failure",
+      description: passed ? "OpenCode review passed." : "OpenCode review failed.",
+      targetUrl: runUrl,
+    });
+    return { exitCode: passed ? 0 : 1, result };
+  } catch (error) {
+    try {
+      await githubClient.setCommitStatus({
+        sha: args.head,
+        state: "failure",
+        description: "OpenCode review failed.",
+        targetUrl: runUrl,
+      });
+    } catch {
+      // Preserve the original review failure.
+    }
+    throw error;
+  }
 }
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";
