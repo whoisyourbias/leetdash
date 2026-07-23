@@ -349,6 +349,13 @@ function appendStepSummary(result) {
   appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join("\n")}\n`);
 }
 
+function assertNoMergeFailures(result) {
+  const count = result.results.filter((item) => item.status === "merge_failed").length;
+  if (count > 0) {
+    throw new Error(`${count} pull request${count === 1 ? "" : "s"} failed to merge.`);
+  }
+}
+
 async function main() {
   const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
   const repository = process.env.GITHUB_REPOSITORY;
@@ -380,6 +387,7 @@ async function main() {
     deployWorkflow,
   });
   appendStepSummary(result);
+  assertNoMergeFailures(result);
 }
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";
@@ -390,4 +398,10 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
   });
 }
 
-export { GitHubClient, evaluatePullRequest, selectLatestCheckRun, sweepSubmissionPullRequests };
+export {
+  assertNoMergeFailures,
+  GitHubClient,
+  evaluatePullRequest,
+  selectLatestCheckRun,
+  sweepSubmissionPullRequests,
+};

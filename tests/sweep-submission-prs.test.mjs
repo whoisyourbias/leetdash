@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { GitHubClient, evaluatePullRequest, sweepSubmissionPullRequests } from "../scripts/sweep-submission-prs.mjs";
+import {
+  assertNoMergeFailures,
+  GitHubClient,
+  evaluatePullRequest,
+  sweepSubmissionPullRequests,
+} from "../scripts/sweep-submission-prs.mjs";
 
 const validFile = {
   filename: "submissions/ada/top-interview-easy/1/Solution.java",
@@ -409,6 +414,37 @@ describe("submission PR sweeper orchestration", () => {
     expect(client.checkRunCalls).toEqual(["sha-7", "sha-8"]);
     expect(client.statusCalls).toEqual(["sha-7", "sha-8"]);
     expect(client.mergeCalls).toEqual([{ number: 7, sha: "sha-8" }]);
+  });
+});
+
+describe("submission PR sweeper CLI outcome", () => {
+  it("throws a sanitized aggregate error after one merge failure", () => {
+    expect(() => assertNoMergeFailures({
+      mergedCount: 1,
+      results: [
+        { number: 7, status: "merge_failed", reason: "sensitive upstream detail" },
+        { number: 8, status: "merged" },
+      ],
+    })).toThrow("1 pull request failed to merge.");
+
+    try {
+      assertNoMergeFailures({
+        mergedCount: 0,
+        results: [{ number: 7, status: "merge_failed", reason: "sensitive upstream detail" }],
+      });
+    } catch (error) {
+      expect(error.message).not.toContain("sensitive upstream detail");
+    }
+  });
+
+  it("does not throw when all pull requests merge or skip normally", () => {
+    expect(() => assertNoMergeFailures({
+      mergedCount: 1,
+      results: [
+        { number: 7, status: "merged" },
+        { number: 8, status: "skipped", reason: "review pending" },
+      ],
+    })).not.toThrow();
   });
 });
 
