@@ -23,4 +23,9 @@ describe("submission sweeper workflow triggers", () => {
     expect(workflow).toContain("SWEEP_REVIEW_WORKFLOW: opencode-review.yml");
     expect(workflow).not.toContain("SWEEP_REQUIRED_CHECK:");
   });
+
+  it("uses the dedicated merge token so fork pull requests can be merged by the sweeper", () => {
+    expect(workflow).toContain("GH_TOKEN: ${{ secrets.SWEEP_MERGE_TOKEN }}");
+    expect(workflow).not.toContain("GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}");
+  });
 });
