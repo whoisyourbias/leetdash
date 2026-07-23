@@ -41,6 +41,8 @@ jobs:
         run: |
           gh api user --jq '"Merge token actor: \(.login)"'
           gh api "repos/${GITHUB_REPOSITORY}" --jq '"Merge token repository permissions: \(.permissions)"'
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/merges" -f base=master -f head=master --silent
+          echo "Merge token Contents write probe: passed"
 
       - name: Merge eligible submission PRs
         run: node scripts/sweep-submission-prs.mjs
