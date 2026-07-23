@@ -668,6 +668,31 @@ describe("submission PR sweeper CLI outcome", () => {
 });
 
 describe("GitHubClient check-run retrieval", () => {
+  it("preserves safe GitHub response headers when a request fails", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response(
+      JSON.stringify({ message: "Resource not accessible by personal access token" }),
+      {
+        status: 403,
+        headers: {
+          "retry-after": "60",
+          "x-github-request-id": "REQ-123",
+          "x-ratelimit-remaining": "0",
+          "x-ratelimit-reset": "1784820000",
+        },
+      },
+    );
+
+    try {
+      const client = new GitHubClient({ repository: "leetdash/test", token: "test-token" });
+      await expect(client.getPullRequest(58)).rejects.toThrow(
+        "request_id=REQ-123 retry_after=60 rate_limit_remaining=0 rate_limit_reset=1784820000",
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it("fetches all check runs once from the exact head SHA without filtering by name", async () => {
     const originalFetch = globalThis.fetch;
     const requests = [];

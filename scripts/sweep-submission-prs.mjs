@@ -221,7 +221,18 @@ class GitHubClient {
 
     const text = await response.text();
     if (!response.ok) {
-      throw new Error(`${method} ${apiPath} failed with ${response.status}: ${text}`);
+      const diagnostics = [
+        ["request_id", response.headers.get("x-github-request-id")],
+        ["retry_after", response.headers.get("retry-after")],
+        ["rate_limit_remaining", response.headers.get("x-ratelimit-remaining")],
+        ["rate_limit_reset", response.headers.get("x-ratelimit-reset")],
+      ]
+        .filter(([, value]) => value !== null)
+        .map(([name, value]) => `${name}=${value}`)
+        .join(" ");
+      throw new Error(
+        `${method} ${apiPath} failed with ${response.status}: ${text}${diagnostics ? ` (${diagnostics})` : ""}`,
+      );
     }
 
     return text ? JSON.parse(text) : null;
