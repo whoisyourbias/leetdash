@@ -1,54 +1,21 @@
-import java.util.LinkedList;
+import java.util.HashMap;
 
 class Solution {
-	static int ways = 0;
-
-	private class Status {
-		int remainStairs;
-
-		Status(int remainStairs) {
-			this.remainStairs = remainStairs;
-		}
-
-		Status(Status other) {
-			this.remainStairs = other.remainStairs;
-
-		}
-	}
 
 	public int climbStairs(int n) {
-		LinkedList<Status> queue = new LinkedList<>();
-
-		Status init = new Status(n);
-		queue.add(init);
-		while (queue.size() != 0) {
-			Status polled = queue.poll();
-			bfs(queue, polled);
+		if (n <= 3) {
+			return n;
 		}
 
-		return Solution.ways;
-	}
-
-	private void bfs(LinkedList<Status> queue, Status s) {
-		// END STATEMENT
-		if (s.remainStairs == 0) {
-			Solution.ways++;
-			return;
+		HashMap<Integer, Integer> m = new HashMap<>();
+		m.put(1, 1);
+		m.put(2, 2);
+		m.put(3, 3);
+		for (int i = 4; i <= n; i++) {
+			// System.out.printf("%d = %d + %d\n", i, m.get(i - 1) , m.get(i - 2));
+			m.put(i, m.get(i - 1) + m.get(i - 2));
 		}
 
-		if (s.remainStairs >= 2) {
-			Status v1 = new Status(s);
-			// 2 or 1
-			v1.remainStairs -= 2;
-			queue.add(v1);
-
-			s.remainStairs -= 1;
-			queue.add(s);
-
-		}
-		if (s.remainStairs == 1) {
-			s.remainStairs -= 1;
-			queue.add(s);
-		}
+		return m.get(n);
 	}
 }
