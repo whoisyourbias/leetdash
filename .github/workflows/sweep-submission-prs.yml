@@ -35,6 +35,13 @@ jobs:
         with:
           node-version: 20
 
+      - name: Verify merge token access
+        env:
+          GH_TOKEN: ${{ secrets.SWEEP_MERGE_TOKEN }}
+        run: |
+          gh api user --jq '"Merge token actor: \(.login)"'
+          gh api "repos/${GITHUB_REPOSITORY}" --jq '"Merge token repository permissions: \(.permissions)"'
+
       - name: Merge eligible submission PRs
         run: node scripts/sweep-submission-prs.mjs
         env:
