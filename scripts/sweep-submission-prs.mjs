@@ -48,15 +48,16 @@ function hasSuccessfulCheckRun(checkRuns, checkName, expectedApp) {
 
 function selectLatestCommitStatus(commitStatuses, context, expectedCreator) {
   const exactContextStatuses = commitStatuses.filter((status) => status?.context === context);
-  if (exactContextStatuses.some((status) => status?.creator?.login !== expectedCreator)) return undefined;
+  if (exactContextStatuses.some((status) => typeof status?.creator?.login !== "string")) return undefined;
+  const trustedStatuses = exactContextStatuses.filter((status) => status.creator.login === expectedCreator);
   if (
-    exactContextStatuses.length === 0
-    || exactContextStatuses.some((status) => !Number.isSafeInteger(status.id))
+    trustedStatuses.length === 0
+    || trustedStatuses.some((status) => !Number.isSafeInteger(status.id))
   ) {
     return undefined;
   }
-  const latestId = Math.max(...exactContextStatuses.map((status) => status.id));
-  const latestStatuses = exactContextStatuses.filter((status) => status.id === latestId);
+  const latestId = Math.max(...trustedStatuses.map((status) => status.id));
+  const latestStatuses = trustedStatuses.filter((status) => status.id === latestId);
   return latestStatuses.length === 1 ? latestStatuses[0] : undefined;
 }
 
@@ -64,10 +65,10 @@ function hasSuccessfulCommitStatus(commitStatuses, context, expectedCreator) {
   return selectLatestCommitStatus(commitStatuses, context, expectedCreator)?.state === "success";
 }
 
-function normalizeRequiredChecks(requiredChecks = defaultRequiredChecks) {
-  const values = Array.isArray(requiredChecks) ? requiredChecks : [requiredChecks];
+function normalizeRequiredValues(requiredValues, fallback) {
+  const values = Array.isArray(requiredValues) ? requiredValues : [requiredValues];
   const normalized = values.flatMap((value) => String(value).split(",")).map((value) => value.trim()).filter(Boolean);
-  return normalized.length > 0 ? normalized : defaultRequiredChecks;
+  return normalized.length > 0 ? normalized : fallback;
 }
 
 function evaluatePullRequest({
@@ -109,13 +110,13 @@ function evaluatePullRequest({
     return { eligible: false, reason: "pull request has merge conflicts." };
   }
 
-  for (const requiredCheck of normalizeRequiredChecks(requiredChecks)) {
+  for (const requiredCheck of normalizeRequiredValues(requiredChecks, defaultRequiredChecks)) {
     if (!hasSuccessfulCheckRun(checkRuns, requiredCheck, requiredCheckApp)) {
       return { eligible: false, reason: `${requiredCheck} check is not successful for ${headSha}.` };
     }
   }
 
-  for (const requiredStatus of normalizeRequiredChecks(requiredStatuses)) {
+  for (const requiredStatus of normalizeRequiredValues(requiredStatuses, defaultRequiredStatuses)) {
     if (!hasSuccessfulCommitStatus(commitStatuses, requiredStatus, requiredStatusCreator)) {
       return { eligible: false, reason: `${requiredStatus} status is not successful for ${headSha}.` };
     }
@@ -257,8 +258,8 @@ async function sweepSubmissionPullRequests({
   deployWorkflow = defaultDeployWorkflow,
 }) {
   const pullRequests = await client.listOpenPullRequests(baseBranch);
-  const normalizedRequiredChecks = normalizeRequiredChecks(requiredChecks);
-  const normalizedRequiredStatuses = normalizeRequiredChecks(requiredStatuses);
+  const normalizedRequiredChecks = normalizeRequiredValues(requiredChecks, defaultRequiredChecks);
+  const normalizedRequiredStatuses = normalizeRequiredValues(requiredStatuses, defaultRequiredStatuses);
   const results = [];
   let mergedCount = 0;
 

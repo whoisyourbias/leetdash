@@ -59,6 +59,18 @@ describe("submission PR sweeper eligibility", () => {
     expect(decision).toEqual({ eligible: true });
   });
 
+  it("does not require the detailed opencode-review Check Run", () => {
+    const decision = evaluate({
+      pullRequest: makePullRequest(),
+      files: [validFile],
+      checkRuns: [successfulChecks[0]],
+      users,
+      catalog,
+    });
+
+    expect(decision).toEqual({ eligible: true });
+  });
+
   it("rejects another user's submission path", () => {
     const decision = evaluate({
       pullRequest: makePullRequest(),
@@ -168,6 +180,35 @@ describe("submission PR sweeper eligibility", () => {
     });
 
     expect(decision).toEqual({ eligible: false, reason: "opencode-review-gate status is not successful for abc123." });
+  });
+
+  it.each([
+    ["older", { ...successfulStatuses[0], id: 300, creator: { login: "foreign-bot" } }],
+    ["newer", { ...successfulStatuses[0], id: 302, creator: { login: "foreign-bot" } }],
+  ])("ignores a well-formed %s foreign status when the trusted gate succeeds", (_name, foreignStatus) => {
+    const decision = evaluate({
+      pullRequest: makePullRequest(),
+      files: [validFile],
+      checkRuns: [successfulChecks[0]],
+      commitStatuses: [foreignStatus, successfulStatuses[0]],
+      users,
+      catalog,
+    });
+
+    expect(decision).toEqual({ eligible: true });
+  });
+
+  it("falls back to the default review gate for a blank required-status configuration", () => {
+    const decision = evaluate({
+      pullRequest: makePullRequest(),
+      files: [validFile],
+      checkRuns: [successfulChecks[0]],
+      users,
+      catalog,
+      requiredStatuses: " , ",
+    });
+
+    expect(decision).toEqual({ eligible: true });
   });
 
   it("normalizes comma-separated required check names while preserving their order", () => {
@@ -475,19 +516,29 @@ describe("GitHubClient check-run retrieval", () => {
     globalThis.fetch = async (url) => {
       const requestUrl = new URL(url);
       requests.push(requestUrl);
-      return new Response(JSON.stringify(successfulStatuses), { status: 200 });
+      const page = Number(requestUrl.searchParams.get("page"));
+      const statuses = page === 1
+        ? Array.from({ length: 100 }, (_, index) => ({ ...successfulStatuses[0], id: index + 1 }))
+        : [{ ...successfulStatuses[0], id: 101 }];
+      return new Response(JSON.stringify(statuses), { status: 200 });
     };
 
     try {
       const client = new GitHubClient({ repository: "leetdash/test", token: "test-token" });
-      await expect(client.listCommitStatuses("abc123")).resolves.toEqual(successfulStatuses);
+      const statuses = await client.listCommitStatuses("abc123");
+      expect(statuses).toHaveLength(101);
+      expect(statuses.at(-1)).toMatchObject({ id: 101, context: "opencode-review-gate" });
     } finally {
       globalThis.fetch = originalFetch;
     }
 
-    expect(requests).toHaveLength(1);
-    expect(requests[0].pathname).toBe("/repos/leetdash/test/commits/abc123/statuses");
-    expect(requests[0].searchParams.get("context")).toBeNull();
+    expect(requests).toHaveLength(2);
+    requests.forEach((request, index) => {
+      expect(request.pathname).toBe("/repos/leetdash/test/commits/abc123/statuses");
+      expect(request.searchParams.get("context")).toBeNull();
+      expect(request.searchParams.get("page")).toBe(String(index + 1));
+      expect(request.searchParams.get("per_page")).toBe("100");
+    });
   });
 
   it("re-fetches statuses immediately before merge and stops when a review rerun starts", async () => {
