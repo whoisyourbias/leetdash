@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { ActivityCalendar } from "@/app/components/activity-calendar";
+import { CatalogProblemList } from "@/app/components/catalog-problem-list";
 import { FirstUnsolvedProblemScroller } from "@/app/components/first-unsolved-problem-scroller";
 import { difficultyLabel, formatDate, formatDateKey, formatPercent, statusLabel } from "@/lib/format";
 import { getGithubProfileUrl } from "@/lib/github";
@@ -90,16 +91,11 @@ export default async function UserDetailPage({ params }: { params: Promise<{ use
       </section>
 
       {lists.map((list) => (
-        <section className="panel" key={list.key}>
-          <div className="panel-header">
-            <div>
-              <h2>{formatCatalogListTitle(list.title)}</h2>
-              <p className="panel-subtitle">
-                풀이 완료 {list.progress.solved}개, 검토 중 {list.progress.reviewing}개, 건너뜀{" "}
-                {list.progress.skipped}개
-              </p>
-            </div>
-          </div>
+        <CatalogProblemList
+          key={list.key}
+          title={formatCatalogListTitle(list.title)}
+          subtitle={`풀이 완료 ${list.progress.solved}개, 검토 중 ${list.progress.reviewing}개, 건너뜀 ${list.progress.skipped}개`}
+        >
           <div className="table-wrap">
             <table>
               <thead>
@@ -167,7 +163,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ use
               </tbody>
             </table>
           </div>
-        </section>
+        </CatalogProblemList>
       ))}
 
     </div>
