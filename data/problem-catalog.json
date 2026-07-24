@@ -6,7 +6,7 @@
     "https://leetcode.com/studyplan/top-interview-150/",
     "https://github.com/honood/leetcode/blob/main/README.md",
     "https://blog.nuomi1.com/archives/2018/12/leetcode-top-interview-questions-easy-swift-exercises.html",
-    "https://school.programmers.co.kr/learn/challenges?levels=0&levels=1&levels=2&levels=3",
+    "https://school.programmers.co.kr/learn/challenges?levels=0&levels=1&levels=2&levels=3&levels=4&levels=5",
     "https://swexpertacademy.com/main/code/problem/problemList.do"
   ],
   "lists": [
@@ -4161,7 +4161,7 @@
     {
       "key": "programmers",
       "title": "Programmers",
-      "url": "https://school.programmers.co.kr/learn/challenges?levels=0&levels=1&levels=2&levels=3",
+      "url": "https://school.programmers.co.kr/learn/challenges?levels=0&levels=1&levels=2&levels=3&levels=4&levels=5",
       "summary": [
         "Programmers coding test problems sorted by level"
       ],
@@ -9149,6 +9149,534 @@
           "title": "기차 선로",
           "difficulty": "level-3",
           "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/468381"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "1831",
+          "problemKey": "programmers:1831",
+          "title": "4단 고음",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/1831"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "1839",
+          "problemKey": "programmers:1839",
+          "title": "튜브의 소개팅",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/1839"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "1843",
+          "problemKey": "programmers:1843",
+          "title": "사칙연산",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/1843"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "12929",
+          "problemKey": "programmers:12929",
+          "title": "올바른 괄호의 갯수",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/12929"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "12983",
+          "problemKey": "programmers:12983",
+          "title": "단어 퍼즐",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/12983"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "12984",
+          "problemKey": "programmers:12984",
+          "title": "지형 편집",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/12984"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "17685",
+          "problemKey": "programmers:17685",
+          "title": "[3차] 자동완성",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/17685"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "42891",
+          "problemKey": "programmers:42891",
+          "title": "무지의 먹방 라이브",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/42891"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "42894",
+          "problemKey": "programmers:42894",
+          "title": "블록 게임",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/42894"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "42897",
+          "problemKey": "programmers:42897",
+          "title": "도둑질",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/42897"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "43236",
+          "problemKey": "programmers:43236",
+          "title": "징검다리",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/43236"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "49995",
+          "problemKey": "programmers:49995",
+          "title": "쿠키 구입",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/49995"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "59045",
+          "problemKey": "programmers:59045",
+          "title": "보호소에서 중성화한 동물",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/59045"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "59413",
+          "problemKey": "programmers:59413",
+          "title": "입양 시각 구하기(2)",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/59413"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "60060",
+          "problemKey": "programmers:60060",
+          "title": "가사 검색",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/60060"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "62050",
+          "problemKey": "programmers:62050",
+          "title": "지형 이동",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/62050"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "62284",
+          "problemKey": "programmers:62284",
+          "title": "우유와 요거트가 담긴 장바구니",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/62284"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "64063",
+          "problemKey": "programmers:64063",
+          "title": "호텔 방 배정",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/64063"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "67260",
+          "problemKey": "programmers:67260",
+          "title": "동굴 탐험",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/67260"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "68647",
+          "problemKey": "programmers:68647",
+          "title": "짝수 행 세기",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/68647"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "68937",
+          "problemKey": "programmers:68937",
+          "title": "트리 트리오 중간값",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/68937"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "72416",
+          "problemKey": "programmers:72416",
+          "title": "매출 하락 최소화",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/72416"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "81304",
+          "problemKey": "programmers:81304",
+          "title": "미로 탈출",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/81304"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "86054",
+          "problemKey": "programmers:86054",
+          "title": "안티세포",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/86054"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "118670",
+          "problemKey": "programmers:118670",
+          "title": "행렬과 연산",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/118670"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "131116",
+          "problemKey": "programmers:131116",
+          "title": "식품분류별 가장 비싼 식품의 정보 조회하기",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/131116"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "131117",
+          "problemKey": "programmers:131117",
+          "title": "5월 식품들의 총매출 조회하기",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/131117"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "131118",
+          "problemKey": "programmers:131118",
+          "title": "서울에 위치한 식당 목록 출력하기",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/131118"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "131124",
+          "problemKey": "programmers:131124",
+          "title": "그룹별 조건에 맞는 식당 목록 출력하기",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/131124"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "131532",
+          "problemKey": "programmers:131532",
+          "title": "년, 월, 성별 별 상품 구매 회원 수 구하기",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/131532"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "131537",
+          "problemKey": "programmers:131537",
+          "title": "오프라인/온라인 판매 데이터 통합하기",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/131537"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "132204",
+          "problemKey": "programmers:132204",
+          "title": "취소되지 않은 진료 예약 조회하기",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/132204"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "133027",
+          "problemKey": "programmers:133027",
+          "title": "주문량이 많은 아이스크림들 조회하기",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/133027"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "140105",
+          "problemKey": "programmers:140105",
+          "title": "쌍둥이 빌딩 숲",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/140105"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "144856",
+          "problemKey": "programmers:144856",
+          "title": "저자 별 카테고리 별 매출액 집계하기",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/144856"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "150364",
+          "problemKey": "programmers:150364",
+          "title": "1,2,3 떨어트리기",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/150364"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "151141",
+          "problemKey": "programmers:151141",
+          "title": "자동차 대여 기록 별 대여 금액 구하기",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/151141"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "157339",
+          "problemKey": "programmers:157339",
+          "title": "특정 기간동안 대여 가능한 자동차들의 대여비용 구하기",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/157339"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "214290",
+          "problemKey": "programmers:214290",
+          "title": "경사로의 개수",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/214290"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "276035",
+          "problemKey": "programmers:276035",
+          "title": "FrontEnd 개발자 찾기",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/276035"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "276036",
+          "problemKey": "programmers:276036",
+          "title": "언어별 개발자 분류하기",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/276036"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "284528",
+          "problemKey": "programmers:284528",
+          "title": "연간 평가점수에 해당하는 평가 등급 및 성과금 조회하기",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/284528"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "301650",
+          "problemKey": "programmers:301650",
+          "title": "특정 세대의 대장균 찾기",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/301650"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "389629",
+          "problemKey": "programmers:389629",
+          "title": "가장 큰 삼각형 덩어리",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/389629"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "389630",
+          "problemKey": "programmers:389630",
+          "title": "격자 뒤집기 미로",
+          "difficulty": "level-4",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/389630"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "1834",
+          "problemKey": "programmers:1834",
+          "title": "신비로운 유적 탐험",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/1834"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "1840",
+          "problemKey": "programmers:1840",
+          "title": "스마트한 프로도",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/1840"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "1841",
+          "problemKey": "programmers:1841",
+          "title": "IU와 콘의 보드게임",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/1841"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "1842",
+          "problemKey": "programmers:1842",
+          "title": "네오의 귀걸이",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/1842"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "12974",
+          "problemKey": "programmers:12974",
+          "title": "직사각형의 넓이",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/12974"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "49190",
+          "problemKey": "programmers:49190",
+          "title": "방의 개수",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/49190"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "68938",
+          "problemKey": "programmers:68938",
+          "title": "문자열의 아름다움",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/68938"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "70132",
+          "problemKey": "programmers:70132",
+          "title": "가짜 해밀토니안",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/70132"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "76504",
+          "problemKey": "programmers:76504",
+          "title": "RPG와 쿼리",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/76504"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "77887",
+          "problemKey": "programmers:77887",
+          "title": "중력 작용",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/77887"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "81305",
+          "problemKey": "programmers:81305",
+          "title": "시험장 나누기",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/81305"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "87394",
+          "problemKey": "programmers:87394",
+          "title": "쿼리의 모음의 개수",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/87394"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "131534",
+          "problemKey": "programmers:131534",
+          "title": "상품을 구매한 회원 비율 구하기",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/131534"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "214291",
+          "problemKey": "programmers:214291",
+          "title": "집합과 쿼리",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/214291"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "214292",
+          "problemKey": "programmers:214292",
+          "title": "재밌는 레이싱 경기장 설계하기",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/214292"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "214293",
+          "problemKey": "programmers:214293",
+          "title": "중요한 도로",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/214293"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "214294",
+          "problemKey": "programmers:214294",
+          "title": "빠른 이동",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/214294"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "214295",
+          "problemKey": "programmers:214295",
+          "title": "미로 주행 테스트",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/214295"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "301651",
+          "problemKey": "programmers:301651",
+          "title": "멸종위기의 대장균 찾기",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/301651"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "389631",
+          "problemKey": "programmers:389631",
+          "title": "눈사람 만들기",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/389631"
+        },
+        {
+          "provider": "programmers",
+          "problemId": "389632",
+          "problemKey": "programmers:389632",
+          "title": "문자열과 알파벳과 쿼리",
+          "difficulty": "level-5",
+          "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/389632"
         }
       ],
       "items": [
@@ -12889,6 +13417,402 @@
           "order": 623,
           "section": "Level 3",
           "submissionKey": "468381"
+        },
+        {
+          "problemKey": "programmers:1831",
+          "order": 624,
+          "section": "Level 4",
+          "submissionKey": "1831"
+        },
+        {
+          "problemKey": "programmers:1839",
+          "order": 625,
+          "section": "Level 4",
+          "submissionKey": "1839"
+        },
+        {
+          "problemKey": "programmers:1843",
+          "order": 626,
+          "section": "Level 4",
+          "submissionKey": "1843"
+        },
+        {
+          "problemKey": "programmers:12929",
+          "order": 627,
+          "section": "Level 4",
+          "submissionKey": "12929"
+        },
+        {
+          "problemKey": "programmers:12983",
+          "order": 628,
+          "section": "Level 4",
+          "submissionKey": "12983"
+        },
+        {
+          "problemKey": "programmers:12984",
+          "order": 629,
+          "section": "Level 4",
+          "submissionKey": "12984"
+        },
+        {
+          "problemKey": "programmers:17685",
+          "order": 630,
+          "section": "Level 4",
+          "submissionKey": "17685"
+        },
+        {
+          "problemKey": "programmers:42891",
+          "order": 631,
+          "section": "Level 4",
+          "submissionKey": "42891"
+        },
+        {
+          "problemKey": "programmers:42894",
+          "order": 632,
+          "section": "Level 4",
+          "submissionKey": "42894"
+        },
+        {
+          "problemKey": "programmers:42897",
+          "order": 633,
+          "section": "Level 4",
+          "submissionKey": "42897"
+        },
+        {
+          "problemKey": "programmers:43236",
+          "order": 634,
+          "section": "Level 4",
+          "submissionKey": "43236"
+        },
+        {
+          "problemKey": "programmers:49995",
+          "order": 635,
+          "section": "Level 4",
+          "submissionKey": "49995"
+        },
+        {
+          "problemKey": "programmers:59045",
+          "order": 636,
+          "section": "Level 4",
+          "submissionKey": "59045"
+        },
+        {
+          "problemKey": "programmers:59413",
+          "order": 637,
+          "section": "Level 4",
+          "submissionKey": "59413"
+        },
+        {
+          "problemKey": "programmers:60060",
+          "order": 638,
+          "section": "Level 4",
+          "submissionKey": "60060"
+        },
+        {
+          "problemKey": "programmers:62050",
+          "order": 639,
+          "section": "Level 4",
+          "submissionKey": "62050"
+        },
+        {
+          "problemKey": "programmers:62284",
+          "order": 640,
+          "section": "Level 4",
+          "submissionKey": "62284"
+        },
+        {
+          "problemKey": "programmers:64063",
+          "order": 641,
+          "section": "Level 4",
+          "submissionKey": "64063"
+        },
+        {
+          "problemKey": "programmers:67260",
+          "order": 642,
+          "section": "Level 4",
+          "submissionKey": "67260"
+        },
+        {
+          "problemKey": "programmers:68647",
+          "order": 643,
+          "section": "Level 4",
+          "submissionKey": "68647"
+        },
+        {
+          "problemKey": "programmers:68937",
+          "order": 644,
+          "section": "Level 4",
+          "submissionKey": "68937"
+        },
+        {
+          "problemKey": "programmers:72416",
+          "order": 645,
+          "section": "Level 4",
+          "submissionKey": "72416"
+        },
+        {
+          "problemKey": "programmers:81304",
+          "order": 646,
+          "section": "Level 4",
+          "submissionKey": "81304"
+        },
+        {
+          "problemKey": "programmers:86054",
+          "order": 647,
+          "section": "Level 4",
+          "submissionKey": "86054"
+        },
+        {
+          "problemKey": "programmers:118670",
+          "order": 648,
+          "section": "Level 4",
+          "submissionKey": "118670"
+        },
+        {
+          "problemKey": "programmers:131116",
+          "order": 649,
+          "section": "Level 4",
+          "submissionKey": "131116"
+        },
+        {
+          "problemKey": "programmers:131117",
+          "order": 650,
+          "section": "Level 4",
+          "submissionKey": "131117"
+        },
+        {
+          "problemKey": "programmers:131118",
+          "order": 651,
+          "section": "Level 4",
+          "submissionKey": "131118"
+        },
+        {
+          "problemKey": "programmers:131124",
+          "order": 652,
+          "section": "Level 4",
+          "submissionKey": "131124"
+        },
+        {
+          "problemKey": "programmers:131532",
+          "order": 653,
+          "section": "Level 4",
+          "submissionKey": "131532"
+        },
+        {
+          "problemKey": "programmers:131537",
+          "order": 654,
+          "section": "Level 4",
+          "submissionKey": "131537"
+        },
+        {
+          "problemKey": "programmers:132204",
+          "order": 655,
+          "section": "Level 4",
+          "submissionKey": "132204"
+        },
+        {
+          "problemKey": "programmers:133027",
+          "order": 656,
+          "section": "Level 4",
+          "submissionKey": "133027"
+        },
+        {
+          "problemKey": "programmers:140105",
+          "order": 657,
+          "section": "Level 4",
+          "submissionKey": "140105"
+        },
+        {
+          "problemKey": "programmers:144856",
+          "order": 658,
+          "section": "Level 4",
+          "submissionKey": "144856"
+        },
+        {
+          "problemKey": "programmers:150364",
+          "order": 659,
+          "section": "Level 4",
+          "submissionKey": "150364"
+        },
+        {
+          "problemKey": "programmers:151141",
+          "order": 660,
+          "section": "Level 4",
+          "submissionKey": "151141"
+        },
+        {
+          "problemKey": "programmers:157339",
+          "order": 661,
+          "section": "Level 4",
+          "submissionKey": "157339"
+        },
+        {
+          "problemKey": "programmers:214290",
+          "order": 662,
+          "section": "Level 4",
+          "submissionKey": "214290"
+        },
+        {
+          "problemKey": "programmers:276035",
+          "order": 663,
+          "section": "Level 4",
+          "submissionKey": "276035"
+        },
+        {
+          "problemKey": "programmers:276036",
+          "order": 664,
+          "section": "Level 4",
+          "submissionKey": "276036"
+        },
+        {
+          "problemKey": "programmers:284528",
+          "order": 665,
+          "section": "Level 4",
+          "submissionKey": "284528"
+        },
+        {
+          "problemKey": "programmers:301650",
+          "order": 666,
+          "section": "Level 4",
+          "submissionKey": "301650"
+        },
+        {
+          "problemKey": "programmers:389629",
+          "order": 667,
+          "section": "Level 4",
+          "submissionKey": "389629"
+        },
+        {
+          "problemKey": "programmers:389630",
+          "order": 668,
+          "section": "Level 4",
+          "submissionKey": "389630"
+        },
+        {
+          "problemKey": "programmers:1834",
+          "order": 669,
+          "section": "Level 5",
+          "submissionKey": "1834"
+        },
+        {
+          "problemKey": "programmers:1840",
+          "order": 670,
+          "section": "Level 5",
+          "submissionKey": "1840"
+        },
+        {
+          "problemKey": "programmers:1841",
+          "order": 671,
+          "section": "Level 5",
+          "submissionKey": "1841"
+        },
+        {
+          "problemKey": "programmers:1842",
+          "order": 672,
+          "section": "Level 5",
+          "submissionKey": "1842"
+        },
+        {
+          "problemKey": "programmers:12974",
+          "order": 673,
+          "section": "Level 5",
+          "submissionKey": "12974"
+        },
+        {
+          "problemKey": "programmers:49190",
+          "order": 674,
+          "section": "Level 5",
+          "submissionKey": "49190"
+        },
+        {
+          "problemKey": "programmers:68938",
+          "order": 675,
+          "section": "Level 5",
+          "submissionKey": "68938"
+        },
+        {
+          "problemKey": "programmers:70132",
+          "order": 676,
+          "section": "Level 5",
+          "submissionKey": "70132"
+        },
+        {
+          "problemKey": "programmers:76504",
+          "order": 677,
+          "section": "Level 5",
+          "submissionKey": "76504"
+        },
+        {
+          "problemKey": "programmers:77887",
+          "order": 678,
+          "section": "Level 5",
+          "submissionKey": "77887"
+        },
+        {
+          "problemKey": "programmers:81305",
+          "order": 679,
+          "section": "Level 5",
+          "submissionKey": "81305"
+        },
+        {
+          "problemKey": "programmers:87394",
+          "order": 680,
+          "section": "Level 5",
+          "submissionKey": "87394"
+        },
+        {
+          "problemKey": "programmers:131534",
+          "order": 681,
+          "section": "Level 5",
+          "submissionKey": "131534"
+        },
+        {
+          "problemKey": "programmers:214291",
+          "order": 682,
+          "section": "Level 5",
+          "submissionKey": "214291"
+        },
+        {
+          "problemKey": "programmers:214292",
+          "order": 683,
+          "section": "Level 5",
+          "submissionKey": "214292"
+        },
+        {
+          "problemKey": "programmers:214293",
+          "order": 684,
+          "section": "Level 5",
+          "submissionKey": "214293"
+        },
+        {
+          "problemKey": "programmers:214294",
+          "order": 685,
+          "section": "Level 5",
+          "submissionKey": "214294"
+        },
+        {
+          "problemKey": "programmers:214295",
+          "order": 686,
+          "section": "Level 5",
+          "submissionKey": "214295"
+        },
+        {
+          "problemKey": "programmers:301651",
+          "order": 687,
+          "section": "Level 5",
+          "submissionKey": "301651"
+        },
+        {
+          "problemKey": "programmers:389631",
+          "order": 688,
+          "section": "Level 5",
+          "submissionKey": "389631"
+        },
+        {
+          "problemKey": "programmers:389632",
+          "order": 689,
+          "section": "Level 5",
+          "submissionKey": "389632"
         }
       ]
     },
@@ -30694,6 +31618,14 @@
     },
     {
       "provider": "programmers",
+      "problemId": "1831",
+      "problemKey": "programmers:1831",
+      "title": "4단 고음",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/1831"
+    },
+    {
+      "provider": "programmers",
       "problemId": "1832",
       "problemKey": "programmers:1832",
       "title": "보행자 천국",
@@ -30707,6 +31639,14 @@
       "title": "캠핑",
       "difficulty": "level-3",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/1833"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "1834",
+      "problemKey": "programmers:1834",
+      "title": "신비로운 유적 탐험",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/1834"
     },
     {
       "provider": "programmers",
@@ -30739,6 +31679,46 @@
       "title": "몸짱 트레이너 라이언의 고민",
       "difficulty": "level-3",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/1838"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "1839",
+      "problemKey": "programmers:1839",
+      "title": "튜브의 소개팅",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/1839"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "1840",
+      "problemKey": "programmers:1840",
+      "title": "스마트한 프로도",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/1840"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "1841",
+      "problemKey": "programmers:1841",
+      "title": "IU와 콘의 보드게임",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/1841"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "1842",
+      "problemKey": "programmers:1842",
+      "title": "네오의 귀걸이",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/1842"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "1843",
+      "problemKey": "programmers:1843",
+      "title": "사칙연산",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/1843"
     },
     {
       "provider": "programmers",
@@ -30990,6 +31970,14 @@
     },
     {
       "provider": "programmers",
+      "problemId": "12929",
+      "problemKey": "programmers:12929",
+      "title": "올바른 괄호의 갯수",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/12929"
+    },
+    {
+      "provider": "programmers",
       "problemId": "12930",
       "problemKey": "programmers:12930",
       "title": "이상한 문자 만들기",
@@ -31214,6 +32202,14 @@
     },
     {
       "provider": "programmers",
+      "problemId": "12974",
+      "problemKey": "programmers:12974",
+      "title": "직사각형의 넓이",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/12974"
+    },
+    {
+      "provider": "programmers",
       "problemId": "12977",
       "problemKey": "programmers:12977",
       "title": "소수 만들기",
@@ -31259,6 +32255,22 @@
       "title": "예산",
       "difficulty": "level-1",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/12982"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "12983",
+      "problemKey": "programmers:12983",
+      "title": "단어 퍼즐",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/12983"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "12984",
+      "problemKey": "programmers:12984",
+      "title": "지형 편집",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/12984"
     },
     {
       "provider": "programmers",
@@ -31347,6 +32359,14 @@
       "title": "[3차] 압축",
       "difficulty": "level-2",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/17684"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "17685",
+      "problemKey": "programmers:17685",
+      "title": "[3차] 자동완성",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/17685"
     },
     {
       "provider": "programmers",
@@ -31574,6 +32594,14 @@
     },
     {
       "provider": "programmers",
+      "problemId": "42891",
+      "problemKey": "programmers:42891",
+      "title": "무지의 먹방 라이브",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/42891"
+    },
+    {
+      "provider": "programmers",
       "problemId": "42892",
       "problemKey": "programmers:42892",
       "title": "길 찾기 게임",
@@ -31590,11 +32618,27 @@
     },
     {
       "provider": "programmers",
+      "problemId": "42894",
+      "problemKey": "programmers:42894",
+      "title": "블록 게임",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/42894"
+    },
+    {
+      "provider": "programmers",
       "problemId": "42895",
       "problemKey": "programmers:42895",
       "title": "N으로 표현",
       "difficulty": "level-3",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/42895"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "42897",
+      "problemKey": "programmers:42897",
+      "title": "도둑질",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/42897"
     },
     {
       "provider": "programmers",
@@ -31646,6 +32690,14 @@
     },
     {
       "provider": "programmers",
+      "problemId": "43236",
+      "problemKey": "programmers:43236",
+      "title": "징검다리",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/43236"
+    },
+    {
+      "provider": "programmers",
       "problemId": "43238",
       "problemKey": "programmers:43238",
       "title": "입국심사",
@@ -31659,6 +32711,14 @@
       "title": "가장 먼 노드",
       "difficulty": "level-3",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/49189"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "49190",
+      "problemKey": "programmers:49190",
+      "title": "방의 개수",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/49190"
     },
     {
       "provider": "programmers",
@@ -31683,6 +32743,14 @@
       "title": "방문 길이",
       "difficulty": "level-2",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/49994"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "49995",
+      "problemKey": "programmers:49995",
+      "title": "쿠키 구입",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/49995"
     },
     {
       "provider": "programmers",
@@ -31771,6 +32839,14 @@
       "title": "오랜 기간 보호한 동물(1)",
       "difficulty": "level-3",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/59044"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "59045",
+      "problemKey": "programmers:59045",
+      "title": "보호소에서 중성화한 동물",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/59045"
     },
     {
       "provider": "programmers",
@@ -31870,6 +32946,14 @@
     },
     {
       "provider": "programmers",
+      "problemId": "59413",
+      "problemKey": "programmers:59413",
+      "title": "입양 시각 구하기(2)",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/59413"
+    },
+    {
+      "provider": "programmers",
       "problemId": "59414",
       "problemKey": "programmers:59414",
       "title": "DATETIME에서 DATE로 형 변환",
@@ -31910,6 +32994,14 @@
     },
     {
       "provider": "programmers",
+      "problemId": "60060",
+      "problemKey": "programmers:60060",
+      "title": "가사 검색",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/60060"
+    },
+    {
+      "provider": "programmers",
       "problemId": "60061",
       "problemKey": "programmers:60061",
       "title": "기둥과 보 설치",
@@ -31942,6 +33034,22 @@
     },
     {
       "provider": "programmers",
+      "problemId": "62050",
+      "problemKey": "programmers:62050",
+      "title": "지형 이동",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/62050"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "62284",
+      "problemKey": "programmers:62284",
+      "title": "우유와 요거트가 담긴 장바구니",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/62284"
+    },
+    {
+      "provider": "programmers",
       "problemId": "64061",
       "problemKey": "programmers:64061",
       "title": "크레인 인형뽑기 게임",
@@ -31955,6 +33063,14 @@
       "title": "징검다리 건너기",
       "difficulty": "level-3",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/64062"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "64063",
+      "problemKey": "programmers:64063",
+      "title": "호텔 방 배정",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/64063"
     },
     {
       "provider": "programmers",
@@ -32006,6 +33122,14 @@
     },
     {
       "provider": "programmers",
+      "problemId": "67260",
+      "problemKey": "programmers:67260",
+      "title": "동굴 탐험",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/67260"
+    },
+    {
+      "provider": "programmers",
       "problemId": "68644",
       "problemKey": "programmers:68644",
       "title": "두 개 뽑아서 더하기",
@@ -32030,6 +33154,14 @@
     },
     {
       "provider": "programmers",
+      "problemId": "68647",
+      "problemKey": "programmers:68647",
+      "title": "짝수 행 세기",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/68647"
+    },
+    {
+      "provider": "programmers",
       "problemId": "68935",
       "problemKey": "programmers:68935",
       "title": "3진법 뒤집기",
@@ -32043,6 +33175,22 @@
       "title": "쿼드압축 후 개수 세기",
       "difficulty": "level-2",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/68936"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "68937",
+      "problemKey": "programmers:68937",
+      "title": "트리 트리오 중간값",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/68937"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "68938",
+      "problemKey": "programmers:68938",
+      "title": "문자열의 아름다움",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/68938"
     },
     {
       "provider": "programmers",
@@ -32067,6 +33215,14 @@
       "title": "스타 수열",
       "difficulty": "level-3",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/70130"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "70132",
+      "problemKey": "programmers:70132",
+      "title": "가짜 해밀토니안",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/70132"
     },
     {
       "provider": "programmers",
@@ -32118,6 +33274,14 @@
     },
     {
       "provider": "programmers",
+      "problemId": "72416",
+      "problemKey": "programmers:72416",
+      "title": "매출 하락 최소화",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/72416"
+    },
+    {
+      "provider": "programmers",
       "problemId": "76501",
       "problemKey": "programmers:76501",
       "title": "음양 더하기",
@@ -32139,6 +33303,14 @@
       "title": "모두 0으로 만들기",
       "difficulty": "level-3",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/76503"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "76504",
+      "problemKey": "programmers:76504",
+      "title": "RPG와 쿼리",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/76504"
     },
     {
       "provider": "programmers",
@@ -32198,6 +33370,14 @@
     },
     {
       "provider": "programmers",
+      "problemId": "77887",
+      "problemKey": "programmers:77887",
+      "title": "중력 작용",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/77887"
+    },
+    {
+      "provider": "programmers",
       "problemId": "81301",
       "problemKey": "programmers:81301",
       "title": "숫자 문자열과 영단어",
@@ -32219,6 +33399,22 @@
       "title": "표 편집",
       "difficulty": "level-3",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/81303"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "81304",
+      "problemKey": "programmers:81304",
+      "title": "미로 탈출",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/81304"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "81305",
+      "problemKey": "programmers:81305",
+      "title": "시험장 나누기",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/81305"
     },
     {
       "provider": "programmers",
@@ -32270,6 +33466,14 @@
     },
     {
       "provider": "programmers",
+      "problemId": "86054",
+      "problemKey": "programmers:86054",
+      "title": "안티세포",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/86054"
+    },
+    {
+      "provider": "programmers",
       "problemId": "86491",
       "problemKey": "programmers:86491",
       "title": "최소직사각형",
@@ -32315,6 +33519,14 @@
       "title": "공 이동 시뮬레이션",
       "difficulty": "level-3",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/87391"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "87394",
+      "problemKey": "programmers:87394",
+      "title": "쿼리의 모음의 개수",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/87394"
     },
     {
       "provider": "programmers",
@@ -32419,6 +33631,14 @@
       "title": "등산코스 정하기",
       "difficulty": "level-3",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/118669"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "118670",
+      "problemKey": "programmers:118670",
+      "title": "행렬과 연산",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/118670"
     },
     {
       "provider": "programmers",
@@ -33254,6 +34474,30 @@
     },
     {
       "provider": "programmers",
+      "problemId": "131116",
+      "problemKey": "programmers:131116",
+      "title": "식품분류별 가장 비싼 식품의 정보 조회하기",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/131116"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "131117",
+      "problemKey": "programmers:131117",
+      "title": "5월 식품들의 총매출 조회하기",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/131117"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "131118",
+      "problemKey": "programmers:131118",
+      "title": "서울에 위치한 식당 목록 출력하기",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/131118"
+    },
+    {
+      "provider": "programmers",
       "problemId": "131120",
       "problemKey": "programmers:131120",
       "title": "3월에 태어난 여성 회원 목록 출력하기",
@@ -33267,6 +34511,14 @@
       "title": "즐겨찾기가 가장 많은 식당 정보 출력하기",
       "difficulty": "level-3",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/131123"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "131124",
+      "problemKey": "programmers:131124",
+      "title": "그룹별 조건에 맞는 식당 목록 출력하기",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/131124"
     },
     {
       "provider": "programmers",
@@ -33326,11 +34578,27 @@
     },
     {
       "provider": "programmers",
+      "problemId": "131532",
+      "problemKey": "programmers:131532",
+      "title": "년, 월, 성별 별 상품 구매 회원 수 구하기",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/131532"
+    },
+    {
+      "provider": "programmers",
       "problemId": "131533",
       "problemKey": "programmers:131533",
       "title": "상품 별 오프라인 매출 구하기",
       "difficulty": "level-2",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/131533"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "131534",
+      "problemKey": "programmers:131534",
+      "title": "상품을 구매한 회원 비율 구하기",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/131534"
     },
     {
       "provider": "programmers",
@@ -33347,6 +34615,14 @@
       "title": "재구매가 일어난 상품과 회원 리스트 구하기",
       "difficulty": "level-2",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/131536"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "131537",
+      "problemKey": "programmers:131537",
+      "title": "오프라인/온라인 판매 데이터 통합하기",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/131537"
     },
     {
       "provider": "programmers",
@@ -33422,6 +34698,14 @@
     },
     {
       "provider": "programmers",
+      "problemId": "132204",
+      "problemKey": "programmers:132204",
+      "title": "취소되지 않은 진료 예약 조회하기",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/132204"
+    },
+    {
+      "provider": "programmers",
       "problemId": "132265",
       "problemKey": "programmers:132265",
       "title": "롤케이크 자르기",
@@ -33467,6 +34751,14 @@
       "title": "성분으로 구분한 아이스크림 총 주문량",
       "difficulty": "level-2",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/133026"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "133027",
+      "problemKey": "programmers:133027",
+      "title": "주문량이 많은 아이스크림들 조회하기",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/133027"
     },
     {
       "provider": "programmers",
@@ -33566,6 +34858,14 @@
     },
     {
       "provider": "programmers",
+      "problemId": "140105",
+      "problemKey": "programmers:140105",
+      "title": "쌍둥이 빌딩 숲",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/140105"
+    },
+    {
+      "provider": "programmers",
       "problemId": "140107",
       "problemKey": "programmers:140107",
       "title": "점 찍기",
@@ -33622,6 +34922,14 @@
     },
     {
       "provider": "programmers",
+      "problemId": "144856",
+      "problemKey": "programmers:144856",
+      "title": "저자 별 카테고리 별 매출액 집계하기",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/144856"
+    },
+    {
+      "provider": "programmers",
       "problemId": "147354",
       "problemKey": "programmers:147354",
       "title": "테이블 해시 함수",
@@ -33651,6 +34959,14 @@
       "title": "마법의 엘리베이터",
       "difficulty": "level-2",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/148653"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "150364",
+      "problemKey": "programmers:150364",
+      "title": "1,2,3 떨어트리기",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/150364"
     },
     {
       "provider": "programmers",
@@ -33734,6 +35050,14 @@
     },
     {
       "provider": "programmers",
+      "problemId": "151141",
+      "problemKey": "programmers:151141",
+      "title": "자동차 대여 기록 별 대여 금액 구하기",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/151141"
+    },
+    {
+      "provider": "programmers",
       "problemId": "152995",
       "problemKey": "programmers:152995",
       "title": "인사고과",
@@ -33787,6 +35111,14 @@
       "title": "둘만의 암호",
       "difficulty": "level-1",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/155652"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "157339",
+      "problemKey": "programmers:157339",
+      "title": "특정 기간동안 대여 가능한 자동차들의 대여비용 구하기",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/157339"
     },
     {
       "provider": "programmers",
@@ -35014,6 +36346,54 @@
     },
     {
       "provider": "programmers",
+      "problemId": "214290",
+      "problemKey": "programmers:214290",
+      "title": "경사로의 개수",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/214290"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "214291",
+      "problemKey": "programmers:214291",
+      "title": "집합과 쿼리",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/214291"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "214292",
+      "problemKey": "programmers:214292",
+      "title": "재밌는 레이싱 경기장 설계하기",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/214292"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "214293",
+      "problemKey": "programmers:214293",
+      "title": "중요한 도로",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/214293"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "214294",
+      "problemKey": "programmers:214294",
+      "title": "빠른 이동",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/214294"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "214295",
+      "problemKey": "programmers:214295",
+      "title": "미로 주행 테스트",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/214295"
+    },
+    {
+      "provider": "programmers",
       "problemId": "250121",
       "problemKey": "programmers:250121",
       "title": "[PCCE 기출문제] 10번 / 데이터 분석",
@@ -35214,11 +36594,35 @@
     },
     {
       "provider": "programmers",
+      "problemId": "276035",
+      "problemKey": "programmers:276035",
+      "title": "FrontEnd 개발자 찾기",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/276035"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "276036",
+      "problemKey": "programmers:276036",
+      "title": "언어별 개발자 분류하기",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/276036"
+    },
+    {
+      "provider": "programmers",
       "problemId": "284527",
       "problemKey": "programmers:284527",
       "title": "조건에 맞는 사원 정보 조회하기",
       "difficulty": "level-2",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/284527"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "284528",
+      "problemKey": "programmers:284528",
+      "title": "연간 평가점수에 해당하는 평가 등급 및 성과금 조회하기",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/284528"
     },
     {
       "provider": "programmers",
@@ -35379,6 +36783,22 @@
       "title": "대장균의 크기에 따라 분류하기 2",
       "difficulty": "level-3",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/301649"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "301650",
+      "problemKey": "programmers:301650",
+      "title": "특정 세대의 대장균 찾기",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/301650"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "301651",
+      "problemKey": "programmers:301651",
+      "title": "멸종위기의 대장균 찾기",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/301651"
     },
     {
       "provider": "programmers",
@@ -35555,6 +36975,38 @@
       "title": "봉인된 주문",
       "difficulty": "level-3",
       "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/389481"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "389629",
+      "problemKey": "programmers:389629",
+      "title": "가장 큰 삼각형 덩어리",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/389629"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "389630",
+      "problemKey": "programmers:389630",
+      "title": "격자 뒤집기 미로",
+      "difficulty": "level-4",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/389630"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "389631",
+      "problemKey": "programmers:389631",
+      "title": "눈사람 만들기",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/389631"
+    },
+    {
+      "provider": "programmers",
+      "problemId": "389632",
+      "problemKey": "programmers:389632",
+      "title": "문자열과 알파벳과 쿼리",
+      "difficulty": "level-5",
+      "sourceUrl": "https://school.programmers.co.kr/learn/courses/30/lessons/389632"
     },
     {
       "provider": "programmers",

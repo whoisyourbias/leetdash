@@ -13,7 +13,7 @@ describe("problem catalog", () => {
       ["top-interview-easy", 49],
       ["leetcode-75", 75],
       ["top-interview-150", 150],
-      ["programmers", 623],
+      ["programmers", 689],
       ["swea", 1124],
     ]);
   });
