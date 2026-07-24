@@ -1,5 +1,5 @@
 /**
- * Fetches all Programmers problems for levels 0, 1, 2, 3
+ * Fetches all Programmers problems for levels 0, 1, 2, 3, 4, 5
  * from the Programmers public API.
  *
  * Usage: node scripts/fetch-programmers.mjs
@@ -10,7 +10,7 @@
 
 const BASE_URL = "https://school.programmers.co.kr/api/v2/school/challenges";
 const PER_PAGE = 30; // API fixes perPage at 30
-const TARGET_LEVELS = [0, 1, 2, 3];
+const TARGET_LEVELS = [0, 1, 2, 3, 4, 5];
 const REQUEST_DELAY_MS = 200; // be respectful to the API
 
 async function fetchPage(levels, page) {

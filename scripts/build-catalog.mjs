@@ -186,7 +186,7 @@ if (inputPath) {
 
 async function fetchProgrammersProblems() {
   const BASE_URL = "https://school.programmers.co.kr/api/v2/school/challenges";
-  const LEVELS = [0, 1, 2, 3];
+  const LEVELS = [0, 1, 2, 3, 4, 5];
   const DELAY_MS = 300;
 
   async function fetchPage(page) {
@@ -325,7 +325,7 @@ async function main() {
       submissionKey: String(p.id),
     }));
 
-    programmersSourceUrl = "https://school.programmers.co.kr/learn/challenges?levels=0&levels=1&levels=2&levels=3";
+    programmersSourceUrl = "https://school.programmers.co.kr/learn/challenges?levels=0&levels=1&levels=2&levels=3&levels=4&levels=5";
 
     lists.push({
       key: "programmers",
