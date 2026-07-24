@@ -1,21 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ExternalLink } from "lucide-react";
 import { ActivityCalendar } from "@/app/components/activity-calendar";
-import { CatalogProblemList } from "@/app/components/catalog-problem-list";
+import { FilterableUserProblemLists } from "@/app/components/filterable-user-problem-lists";
 import { FirstUnsolvedProblemScroller } from "@/app/components/first-unsolved-problem-scroller";
-import { difficultyLabel, formatDate, formatDateKey, formatPercent, statusLabel } from "@/lib/format";
+import { formatDateKey, formatPercent } from "@/lib/format";
 import { getGithubProfileUrl } from "@/lib/github";
-import { formatCatalogListTitle, formatCatalogSection, formatProblemTitle } from "@/lib/i18n";
+import { formatCatalogListTitle } from "@/lib/i18n";
 import { getUserDetail, listStaticUsers } from "@/lib/progress";
 
 export const dynamicParams = false;
-
-const providerLabels = {
-  leetcode: "LeetCode",
-  programmers: "Programmers",
-  swea: "SWEA",
-} as const;
 
 export async function generateStaticParams() {
   const users = await listStaticUsers();
@@ -90,81 +83,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ use
         </div>
       </section>
 
-      {lists.map((list) => (
-        <CatalogProblemList
-          key={list.key}
-          title={formatCatalogListTitle(list.title)}
-          subtitle={`풀이 완료 ${list.progress.solved}개, 검토 중 ${list.progress.reviewing}개, 건너뜀 ${list.progress.skipped}개`}
-        >
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>문제</th>
-                  <th>난이도</th>
-                  <th>상태</th>
-                  <th>언어</th>
-                  <th>풀이 일시</th>
-                  <th>링크</th>
-                </tr>
-              </thead>
-              <tbody>
-                {list.items.map((item) => {
-                  const isFirstUnsolvedProblem =
-                    firstUnsolvedProblemTarget?.listKey === list.key &&
-                    firstUnsolvedProblemTarget.problemKey === item.problemKey;
-
-                  return (
-                    <tr
-                      className={isFirstUnsolvedProblem ? "problem-row-target" : undefined}
-                      id={isFirstUnsolvedProblem ? firstUnsolvedProblemTarget.elementId : undefined}
-                      key={`${list.key}-${item.problemKey}`}
-                    >
-                      <td className="mono">{item.order}</td>
-                      <td>
-                        <div className="problem-title">{formatProblemTitle(item.problem.title)}</div>
-                        <div className="muted mono">{formatCatalogSection(item.section)}</div>
-                      </td>
-                      <td>
-                        <span className="badge neutral">{difficultyLabel(item.problem.difficulty)}</span>
-                      </td>
-                      <td>
-                        {item.submission ? (
-                          <>
-                            <span className={`badge ${item.submission.status.toLowerCase()}`}>
-                              {statusLabel(item.submission.status)}
-                            </span>
-                            {item.submission.notes ? <div className="muted">{item.submission.notes}</div> : null}
-                          </>
-                        ) : (
-                          <span className="badge neutral">시작 전</span>
-                        )}
-                      </td>
-                      <td className="mono">{item.submission?.language ?? "-"}</td>
-                      <td>{formatDate(item.submission?.solvedAt)}</td>
-                      <td>
-                        <div className="actions">
-                          <a className="button" href={item.problem.sourceUrl} target="_blank" rel="noreferrer">
-                            <ExternalLink size={16} aria-hidden="true" />
-                            {providerLabels[item.problem.provider]}
-                          </a>
-                          {item.submission?.githubUrl ? (
-                            <a className="button" href={item.submission.githubUrl} target="_blank" rel="noreferrer">
-                              <ExternalLink size={16} aria-hidden="true" />
-                              GitHub
-                            </a>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </CatalogProblemList>
-      ))}
+      <FilterableUserProblemLists lists={lists} firstUnsolvedProblemTarget={firstUnsolvedProblemTarget} />
 
     </div>
   );

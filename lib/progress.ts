@@ -278,14 +278,16 @@ export async function getUserDetail(userId: string) {
   }
 
   const submissions = new Map(user.submissions.map((submission) => [submission.problemKey, submission]));
-  const lists = catalog.lists.map((list) => ({
-    ...list,
-    progress: summarizeList(list, submissions),
-    items: getListProblems(list).map((item) => ({
-      ...item,
-      submission: submissions.get(item.problemKey) ?? null,
-    })),
-  }));
+  const lists = catalog.lists
+    .map((list) => ({
+      ...list,
+      progress: summarizeList(list, submissions),
+      items: getListProblems(list).map((item) => ({
+        ...item,
+        submission: submissions.get(item.problemKey) ?? null,
+      })),
+    }))
+    .sort((a, b) => b.progress.solved - a.progress.solved);
   let firstUnsolvedProblemTarget: FirstUnsolvedProblemTarget | null = null;
 
   for (const list of lists) {
