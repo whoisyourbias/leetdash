@@ -3,8 +3,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const inputPath = process.argv[2] ?? "/private/tmp/honood-readme.md";
-const markdown = readFileSync(inputPath, "utf8");
+const inputPath = process.argv[2];
+const markdown = inputPath ? readFileSync(inputPath, "utf8") : "";
 
 const toProblemKey = (provider, problemId) => `${provider}:${String(problemId)}`;
 
@@ -151,39 +151,144 @@ const topInterviewEasy = {
   })),
 };
 
-const leetcode75 = parseStudyPlan({
-  key: "leetcode-75",
-  title: "LeetCode 75",
-  url: "https://leetcode.com/studyplan/leetcode-75/",
-  summary: ["75 Essential & Trending Problems", "Best for 1~3 months of prep time"],
-  source: sliceSection("## [LeetCode 75]", "## [Top Interview 150]"),
-});
+let leetcode75, topInterview150;
 
-const topInterview150 = parseStudyPlan({
-  key: "top-interview-150",
-  title: "Top Interview 150",
-  url: "https://leetcode.com/studyplan/top-interview-150/",
-  summary: ["150 Original & Classic Questions", "Best for 3+ months of prep time"],
-  source: sliceSection("## [Top Interview 150]", "## [Top 100 Liked]"),
-});
+if (inputPath) {
+  // Parse from markdown input file
+  leetcode75 = parseStudyPlan({
+    key: "leetcode-75",
+    title: "LeetCode 75",
+    url: "https://leetcode.com/studyplan/leetcode-75/",
+    summary: ["75 Essential & Trending Problems", "Best for 1~3 months of prep time"],
+    source: sliceSection("## [LeetCode 75]", "## [Top Interview 150]"),
+  });
 
-const programmersProblem = {
-  provider: "programmers",
-  problemId: "12906",
-  problemKey: toProblemKey("programmers", "12906"),
-  title: "같은 숫자는 싫어",
-  difficulty: "level-1",
-  sourceUrl: "https://school.programmers.co.kr/learn/courses/30/lessons/12906",
-};
+  topInterview150 = parseStudyPlan({
+    key: "top-interview-150",
+    title: "Top Interview 150",
+    url: "https://leetcode.com/studyplan/top-interview-150/",
+    summary: ["150 Original & Classic Questions", "Best for 3+ months of prep time"],
+    source: sliceSection("## [Top Interview 150]", "## [Top 100 Liked]"),
+  });
+} else {
+  // No input file: read LeetCode lists from the existing catalog
+  const existingCatalog = JSON.parse(readFileSync(resolve(root, "data/problem-catalog.json"), "utf8"));
+  leetcode75 = existingCatalog.lists.find((l) => l.key === "leetcode-75");
+  topInterview150 = existingCatalog.lists.find((l) => l.key === "top-interview-150");
 
-const sweaProblem = {
-  provider: "swea",
-  problemId: "1206",
-  problemKey: toProblemKey("swea", "1206"),
-  title: "[S/W 문제해결 기본] 1일차 - View",
-  difficulty: "D3",
-  sourceUrl: "https://swexpertacademy.com/main/code/problem/problemList.do?problemTitle=1206",
-};
+  if (!leetcode75 || !topInterview150) {
+    throw new Error(
+      "Existing problem-catalog.json missing leetcode-75 or top-interview-150 lists. " +
+        "Run with an input markdown file first."
+    );
+  }
+}
+
+async function fetchProgrammersProblems() {
+  const BASE_URL = "https://school.programmers.co.kr/api/v2/school/challenges";
+  const LEVELS = [0, 1, 2, 3];
+  const DELAY_MS = 300;
+
+  async function fetchPage(page) {
+    const params = new URLSearchParams();
+    for (const level of LEVELS) {
+      params.append("levels[]", level);
+    }
+    params.set("page", String(page));
+    const url = `${BASE_URL}?${params.toString()}`;
+    const res = await fetch(url, {
+      headers: { Accept: "application/json", "User-Agent": "leetdash-catalog-builder/1.0" },
+    });
+    if (!res.ok) throw new Error(`API ${res.status} for page ${page}`);
+    return res.json();
+  }
+
+  const first = await fetchPage(1);
+  const all = [...first.result];
+  for (let p = 2; p <= first.totalPages; p++) {
+    await new Promise((r) => setTimeout(r, DELAY_MS));
+    const data = await fetchPage(p);
+    all.push(...data.result);
+  }
+  return all;
+}
+
+function createProgrammersProblem(raw) {
+  const problemId = String(raw.id);
+  return {
+    provider: "programmers",
+    problemId,
+    problemKey: toProblemKey("programmers", problemId),
+    title: raw.title,
+    difficulty: `level-${raw.level}`,
+    sourceUrl: `https://school.programmers.co.kr/learn/courses/30/lessons/${problemId}`,
+  };
+}
+
+async function fetchSweaProblems() {
+  const { spawn } = await import("node:child_process");
+  const { resolve, dirname } = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const scriptPath = resolve(__dirname, "fetch-swea.mjs");
+
+  return new Promise((resolvePromise, reject) => {
+    const proc = spawn("node", [scriptPath], {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    proc.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    proc.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    proc.on("close", (code) => {
+      if (code === 0 && stdout) {
+        try {
+          const data = JSON.parse(stdout);
+          resolvePromise(data);
+        } catch (e) {
+          reject(new Error(`Failed to parse fetch-swea output: ${e.message}\n${stderr}`));
+        }
+      } else {
+        reject(new Error(`fetch-swea exited with code ${code}\n${stderr}`));
+      }
+    });
+    proc.on("error", reject);
+  });
+}
+
+function createSweaList(rawProblems) {
+  // Filter out "Unknown" difficulty (mock tests, samples) — they have no D level badge
+  const known = rawProblems.filter((p) => p.difficulty !== "Unknown");
+
+  const problems = known.map((p) => ({
+    provider: "swea",
+    problemId: p.id,
+    problemKey: toProblemKey("swea", p.id),
+    title: p.title,
+    difficulty: p.difficulty,
+    sourceUrl: `https://swexpertacademy.com/main/code/problem/problemDetail.do?problemId=${p.id}`,
+  }));
+  const items = known.map((p, idx) => ({
+    problemKey: toProblemKey("swea", p.id),
+    order: idx + 1,
+    section: p.difficulty,
+    submissionKey: p.id,
+  }));
+  return {
+    key: "swea",
+    title: "SWEA",
+    url: "https://swexpertacademy.com/main/code/problem/problemList.do",
+    summary: ["SW Expert Academy problems sorted by level"],
+    problems,
+    items,
+  };
+}
 
 const providerList = (problem, title) => ({
   key: problem.provider,
@@ -194,49 +299,107 @@ const providerList = (problem, title) => ({
   items: [{ problemKey: problem.problemKey, order: 1, section: "", submissionKey: problem.problemId }],
 });
 
-const lists = [
-  topInterviewEasy,
-  leetcode75,
-  topInterview150,
-  providerList(programmersProblem, "Programmers"),
-  providerList(sweaProblem, "SWEA"),
-];
-const problemsByKey = new Map();
-for (const list of lists) {
-  for (const problem of list.problems) {
-    const existing = problemsByKey.get(problem.problemKey);
-    if (!existing || existing.title.length < problem.title.length) {
-      problemsByKey.set(problem.problemKey, problem);
+async function main() {
+  // Base LeetCode lists
+  const lists = [
+    topInterviewEasy,
+    leetcode75,
+    topInterview150,
+  ];
+
+  // Fetch Programmers problems from API unless a markdown input file was provided
+  const SHOULD_FETCH_PROGRAMMERS = !process.argv[2];
+  let programmersSourceUrl = "";
+
+  if (SHOULD_FETCH_PROGRAMMERS) {
+    console.error("[build-catalog] Fetching Programmers problems from API...");
+    const rawProblems = await fetchProgrammersProblems();
+    // Sort by level (asc), then by id (asc)
+    rawProblems.sort((a, b) => a.level - b.level || Number(a.id) - Number(b.id));
+
+    const programmerProblems = rawProblems.map(createProgrammersProblem);
+    const programmerItems = rawProblems.map((p, idx) => ({
+      problemKey: toProblemKey("programmers", String(p.id)),
+      order: idx + 1,
+      section: `Level ${p.level}`,
+      submissionKey: String(p.id),
+    }));
+
+    programmersSourceUrl = "https://school.programmers.co.kr/learn/challenges?levels=0&levels=1&levels=2&levels=3";
+
+    lists.push({
+      key: "programmers",
+      title: "Programmers",
+      url: programmersSourceUrl,
+      summary: ["Programmers coding test problems sorted by level"],
+      problems: programmerProblems,
+      items: programmerItems,
+    });
+
+    console.error(`[build-catalog] Programmers: ${programmerProblems.length} problems added`);
+  } else {
+    // Fallback: single hardcoded entry (legacy mode with markdown input)
+    const programmersProblem = {
+      provider: "programmers",
+      problemId: "12906",
+      problemKey: toProblemKey("programmers", "12906"),
+      title: "같은 숫자는 싫어",
+      difficulty: "level-1",
+      sourceUrl: "https://school.programmers.co.kr/learn/courses/30/lessons/12906",
+    };
+    programmersSourceUrl = programmersProblem.sourceUrl;
+    lists.push(providerList(programmersProblem, "Programmers"));
+  }
+
+  // SWEA (fetch all problems from SW Expert Academy)
+  console.error("[build-catalog] Fetching SWEA problems...");
+  const sweaRaw = await fetchSweaProblems();
+  lists.push(createSweaList(sweaRaw));
+  console.error(`[build-catalog] SWEA: ${lists[lists.length - 1].problems.length} problems added`);
+
+  // Build unique problems map
+  const problemsByKey = new Map();
+  for (const list of lists) {
+    for (const problem of list.problems) {
+      const existing = problemsByKey.get(problem.problemKey);
+      if (!existing || existing.title.length < problem.title.length) {
+        problemsByKey.set(problem.problemKey, problem);
+      }
     }
   }
+
+  const catalog = {
+    generatedAt: new Date().toISOString().slice(0, 10),
+    sources: [
+      "https://leetcode.com/explore/featured/card/top-interview-questions-easy/",
+      "https://leetcode.com/studyplan/leetcode-75/",
+      "https://leetcode.com/studyplan/top-interview-150/",
+      "https://github.com/honood/leetcode/blob/main/README.md",
+      "https://blog.nuomi1.com/archives/2018/12/leetcode-top-interview-questions-easy-swift-exercises.html",
+      programmersSourceUrl,
+      "https://swexpertacademy.com/main/code/problem/problemList.do",
+    ],
+    lists,
+    problems: [...problemsByKey.values()].sort((a, b) => {
+      const providerOrder = ["leetcode", "programmers", "swea"];
+      return providerOrder.indexOf(a.provider) - providerOrder.indexOf(b.provider) || Number(a.problemId) - Number(b.problemId);
+    }),
+  };
+
+  writeFileSync(resolve(root, "data/problem-catalog.json"), `${JSON.stringify(catalog, null, 2)}\n`);
+  console.log(
+    JSON.stringify(
+      {
+        lists: lists.map((list) => ({ key: list.key, items: list.items.length })),
+        uniqueProblems: catalog.problems.length,
+      },
+      null,
+      2,
+    ),
+  );
 }
 
-const catalog = {
-  generatedAt: "2026-07-18",
-  sources: [
-    "https://leetcode.com/explore/featured/card/top-interview-questions-easy/",
-    "https://leetcode.com/studyplan/leetcode-75/",
-    "https://leetcode.com/studyplan/top-interview-150/",
-    "https://github.com/honood/leetcode/blob/main/README.md",
-    "https://blog.nuomi1.com/archives/2018/12/leetcode-top-interview-questions-easy-swift-exercises.html",
-    programmersProblem.sourceUrl,
-    sweaProblem.sourceUrl,
-  ],
-  lists,
-  problems: [...problemsByKey.values()].sort((a, b) => {
-    const providerOrder = ["leetcode", "programmers", "swea"];
-    return providerOrder.indexOf(a.provider) - providerOrder.indexOf(b.provider) || Number(a.problemId) - Number(b.problemId);
-  }),
-};
-
-writeFileSync(resolve(root, "data/problem-catalog.json"), `${JSON.stringify(catalog, null, 2)}\n`);
-console.log(
-  JSON.stringify(
-    {
-      lists: lists.map((list) => ({ key: list.key, items: list.items.length })),
-      uniqueProblems: catalog.problems.length,
-    },
-    null,
-    2,
-  ),
-);
+main().catch((err) => {
+  console.error(`[build-catalog] FATAL: ${err.message}`);
+  process.exit(1);
+});
