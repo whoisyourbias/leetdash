@@ -13,8 +13,8 @@ describe("problem catalog", () => {
       ["top-interview-easy", 49],
       ["leetcode-75", 75],
       ["top-interview-150", 150],
-      ["programmers", 1],
-      ["swea", 1],
+      ["programmers", 623],
+      ["swea", 1124],
     ]);
   });
 
@@ -89,7 +89,7 @@ describe("problem catalog", () => {
       "https://school.programmers.co.kr/learn/courses/30/lessons/12906",
     );
     expect(getProblemSourceUrl("swea:1206")).toBe(
-      "https://swexpertacademy.com/main/code/problem/problemList.do?problemTitle=1206",
+      "https://swexpertacademy.com/main/code/problem/problemDetail.do?problemId=1206",
     );
   });
 });
