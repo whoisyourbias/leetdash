@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, BarChart3, CheckCircle2, Flame, Users } from "lucide-react";
 import { CatalogEntryCta } from "@/app/components/catalog-entry-cta";
-import { formatDateTime, formatPercent } from "@/lib/format";
+import { formatPercent, formatSnapshotDateTime } from "@/lib/format";
 import { formatCatalogListTitle } from "@/lib/i18n";
 import { getDashboardData } from "@/lib/progress";
 
@@ -88,7 +88,7 @@ export default async function HomePage() {
                   <span className="feed-action"> {submission.problemTitle}</span>을 해결했습니다.
                 </p>
                 <span className="feed-meta">
-                  {formatCatalogListTitle(submission.listTitle)} · {formatDateTime(submission.submittedAt)}
+                  {formatCatalogListTitle(submission.listTitle)} · {formatSnapshotDateTime(submission.submittedAt)}
                 </span>
               </div>
               {submission.githubUrl ? (
