@@ -77,6 +77,12 @@
 			"displayName": "이정환",
 			"githubUsername": "ijeonghwan",
 			"active": true
+		},
+		{
+			"id": "daamont",
+			"displayName": "박수민",
+			"githubUsername": "daamont",
+			"active": true
 		}
     ]
 }
