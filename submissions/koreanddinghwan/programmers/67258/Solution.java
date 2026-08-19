@@ -15,7 +15,7 @@ class Solution {
         names = new HashMap<String, Integer>();
         TreeMap<Integer, ArrayList<Integer[]>> anlLst = new TreeMap<>();
 
-        while (r < gems.length) {
+        while (r < gems.lengt) {
             names.put(gems[r], names.getOrDefault(gems[r], 0) + 1);
             // 넣었는데 보석 전부 커버?
             if (names.size() == count) {
