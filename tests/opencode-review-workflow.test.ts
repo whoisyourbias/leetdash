@@ -23,6 +23,7 @@ describe("trusted OpenCode review workflow", () => {
     expect(workflow).not.toContain("workflow_run.pull_requests[0]");
     expect(workflow).toContain("pull_request_target:");
     expect(workflow).toContain("github.event.label.name == 'ai-review:qwen'");
+    expect(workflow).toContain("github.event.label.name == 'ai-review:mimo'");
     expect(workflow).toContain("runs-on: ubuntu-latest\n    concurrency:");
   });
 

@@ -343,6 +343,29 @@ describe("reviewPullRequest", () => {
     expect(result.results[0]).toMatchObject({ status: "reviewed", model: "opencode-go/qwen3.7-plus" });
   });
 
+  it("forces MiMo and bypasses the model-aware cache for a label-triggered rereview", async () => {
+    const source = "class Solution {}";
+    const models = [];
+    const { options } = reviewOptions({
+      forceFallback: true,
+      forceReview: true,
+      readFile: async () => source,
+      openCodeClient: { review: async ({ model }) => { models.push(model); return passResult(); } },
+    });
+    options.githubClient.listManagedReviewComments = async () => [{
+      id: 32,
+      kind: "file",
+      key: reviewFileKey(firstPath),
+      contentKey: reviewContentKey(source),
+      model: "opencode-go/mimo-v2.5",
+    }];
+
+    const result = await reviewPullRequest(options);
+
+    expect(models).toEqual(["opencode-go/mimo-v2.5"]);
+    expect(result.results[0]).toMatchObject({ status: "reviewed", model: "opencode-go/mimo-v2.5" });
+  });
+
   it("does not cascade from a Qwen usage limit to another model", async () => {
     const models = [];
     const { options } = reviewOptions({
@@ -1040,6 +1063,29 @@ describe("trusted pull-request scope", () => {
     });
 
     expect(scope.forceQwen).toBe(true);
+  });
+
+  it("derives the MiMo override only from the trusted pull-request labels", async () => {
+    const scope = await loadTrustedPullRequestScope({
+      githubClient: {
+        getPullRequest: async () => ({
+          number: 42,
+          changed_files: 1,
+          user: { login: "ada" },
+          labels: [{ name: "ai-review:mimo" }],
+          base: { sha: "base-sha" },
+          head: { sha: "head-sha", repo: { full_name: "fork-user/leetdash" } },
+        }),
+        listPullRequestFiles: async () => [{ status: "added", filename: firstPath }],
+      },
+      pullNumber: 42,
+      baseSha: "base-sha",
+      headSha: "head-sha",
+      catalog,
+      users,
+    });
+
+    expect(scope.forceFallback).toBe(true);
   });
 
   it("derives review applicability from GitHub API file data", async () => {

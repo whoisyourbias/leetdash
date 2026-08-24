@@ -30,6 +30,7 @@ const deliveryDiagnostic = "Comment delivery: GitHub review comment delivery fai
 const embeddedSourceRedactionMinimumLength = 16;
 const recoveryMarkerSchemaVersion = 1;
 const qwenReviewLabel = "ai-review:qwen";
+const fallbackReviewLabel = "ai-review:mimo";
 const deepSeekReviewModel = "opencode-go/deepseek-v4-flash";
 const defaultFallbackReviewModel = "opencode-go/mimo-v2.5";
 const defaultHardReviewModel = "opencode-go/qwen3.7-plus";
@@ -158,6 +159,7 @@ async function loadTrustedPullRequestScope({
     changedFiles,
     headRepository: pullRequest.head.repo.full_name,
     ...(labels.includes(qwenReviewLabel) ? { forceQwen: true } : {}),
+    ...(labels.includes(fallbackReviewLabel) ? { forceFallback: true } : {}),
   };
 }
 
@@ -396,6 +398,7 @@ async function reviewPullRequest({
   hardModel = defaultHardReviewModel,
   catalog,
   forceQwen = false,
+  forceFallback = false,
   forceReview = false,
   mascotUrl,
   serverUrl,
@@ -454,6 +457,7 @@ async function reviewPullRequest({
       activeChangedFiles = scope.changedFiles;
       if (typeof scope.headRepository === "string") activeHeadRepository = scope.headRepository;
       if (scope.forceQwen === true) forceQwen = true;
+      if (scope.forceFallback === true) forceFallback = true;
     }
 
     if (!activeReviewApplicable) {
@@ -486,6 +490,7 @@ async function reviewPullRequest({
 
       const selectModel = (parsedPath) => {
         if (forceQwen) return hardModel;
+        if (forceFallback) return fallbackModel;
         if (!deepSeekUnavailable) return model;
         return fallbackModelForFile({ catalog, parsedPath, fallbackModel, hardModel });
       };
