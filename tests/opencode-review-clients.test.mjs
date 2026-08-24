@@ -39,6 +39,82 @@ describe("OpenCodeClient", () => {
     ]);
   });
 
+  it("uses chat completions for MiMo", async () => {
+    const requests = [];
+    const client = new OpenCodeClient({
+      fetchImpl: async (url, init) => {
+        requests.push({ url: String(url), body: JSON.parse(init.body) });
+        return jsonResponse({ choices: [{ message: { role: "assistant", content: "MiMo review" } }] });
+      },
+    });
+
+    await expect(client.review({
+      model: "opencode-go/mimo-v2.5",
+      apiKey: "test-secret",
+      prompt: "review prompt",
+    })).resolves.toBe("MiMo review");
+    expect(requests).toEqual([{
+      url: "https://opencode.ai/zen/go/v1/chat/completions",
+      body: { model: "mimo-v2.5", messages: [{ role: "user", content: "review prompt" }] },
+    }]);
+  });
+
+  it("uses Anthropic messages for Qwen and returns only validated text blocks", async () => {
+    const requests = [];
+    const client = new OpenCodeClient({
+      fetchImpl: async (url, init) => {
+        requests.push({ url: String(url), headers: init.headers, body: JSON.parse(init.body) });
+        return jsonResponse({
+          role: "assistant",
+          content: [{ type: "thinking", thinking: "hidden" }, { type: "text", text: "Qwen review" }],
+        });
+      },
+    });
+
+    await expect(client.review({
+      model: "opencode-go/qwen3.7-plus",
+      apiKey: "test-secret",
+      prompt: "review prompt",
+    })).resolves.toBe("Qwen review");
+    expect(requests).toEqual([{
+      url: "https://opencode.ai/zen/go/v1/messages",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": "test-secret",
+        "anthropic-version": "2023-06-01",
+        "x-opencode-request": expect.any(String),
+      },
+      body: {
+        model: "qwen3.7-plus",
+        max_tokens: 8192,
+        messages: [{ role: "user", content: "review prompt" }],
+      },
+    }]);
+  });
+
+  it("classifies only an explicit GoUsageLimitError body as an exhausted model quota without leaking it", async () => {
+    const rawBody = "provider-secret GoUsageLimitError account-internal";
+    const client = new OpenCodeClient({
+      fetchImpl: async () => new Response(rawBody, { status: 429, headers: { "request-id": "usage-1" } }),
+    });
+
+    const failure = await client.review({
+      model: "opencode-go/deepseek-v4-flash",
+      apiKey: "api-secret",
+      prompt: "submitted-source-secret",
+    }).catch((error) => error);
+
+    expect(failure).toMatchObject({
+      stage: "model-request",
+      reason: "MODEL_USAGE_LIMIT_EXHAUSTED",
+      retryable: false,
+      httpStatus: 429,
+      requestId: "usage-1",
+    });
+    expect(JSON.stringify(failure)).not.toContain(rawBody);
+    expect(failure.detail).not.toMatch(/provider-secret|account-internal|submitted-source-secret|api-secret/);
+  });
+
   it("times out stalled response-body parsing with a sanitized model-request failure", async () => {
     vi.useFakeTimers();
     const apiKey = "body-timeout-api-key";

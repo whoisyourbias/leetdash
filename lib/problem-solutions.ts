@@ -1,6 +1,6 @@
 import catalogData from "@/data/problem-catalog.json";
 import progressData from "@/data/progress.json";
-import { type CatalogProblem, type ProblemCatalog } from "@/lib/catalog";
+import { mergeDynamicProblems, type CatalogProblem, type ProblemCatalog } from "@/lib/catalog";
 import { getSelectedSubmission } from "@/lib/submission-selection";
 import { type ProgressData, type Submission, type User } from "@/lib/types";
 
@@ -35,6 +35,7 @@ export type ProblemSolutionDetail = {
 };
 
 type ProgressUser = ProgressData["users"][number];
+const baseCatalog = catalogData as ProblemCatalog;
 
 function pickUserIdentity(user: ProgressUser): ProblemDetailUser {
   return {
@@ -82,7 +83,7 @@ function compareProblemId(left: string, right: string): number {
 
 export function listComparableProblemParams(
   data: ProgressData = progressData as ProgressData,
-  catalogInput: ProblemCatalog = catalogData as ProblemCatalog,
+  catalogInput: ProblemCatalog = mergeDynamicProblems(baseCatalog, data.dynamicProblems),
 ): ComparableProblemParam[] {
   const problemsByKey = new Map(catalogInput.problems.map((problem) => [problem.problemKey, problem]));
   const seen = new Set<string>();
@@ -116,7 +117,7 @@ export function getProblemSolutionDetail(
   provider: string,
   problemId: string,
   data: ProgressData = progressData as ProgressData,
-  catalogInput: ProblemCatalog = catalogData as ProblemCatalog,
+  catalogInput: ProblemCatalog = mergeDynamicProblems(baseCatalog, data.dynamicProblems),
 ): ProblemSolutionDetail | null {
   const problem = catalogInput.problems.find(
     (candidate) => candidate.provider === provider && candidate.problemId === problemId,

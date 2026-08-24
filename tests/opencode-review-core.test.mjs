@@ -16,6 +16,7 @@ import {
   ReviewFailure,
   reviewContentKey,
   reviewContentMarker,
+  reviewModelMarker,
   reviewFileKey,
   reviewFileMarker,
   sanitizeReviewMarkdown,
@@ -158,11 +159,13 @@ describe("managed review markers and branding", () => {
     expect(firstMarker).not.toBe(secondMarker);
     expect(reviewFileMarker(reviewPath)).toBe(firstMarker);
     expect(contentKey).toMatch(/^[a-f0-9]{64}$/);
+    expect(reviewModelMarker("opencode-go/qwen3.7-plus")).toBe("<!-- leetdash-opencode-review-model:opencode-go/qwen3.7-plus -->");
     expect(contentKey).not.toBe(reviewContentKey("class Solution { int value = 2; }"));
-    expect(parseManagedReviewMarker(`${firstMarker}\n${reviewContentMarker(contentKey)}\nbody`)).toEqual({
+    expect(parseManagedReviewMarker(`${firstMarker}\n${reviewContentMarker(contentKey)}\n${reviewModelMarker("opencode-go/qwen3.7-plus")}\nbody`)).toEqual({
       kind: "file",
       key: reviewFileKey(reviewPath),
       contentKey,
+      model: "opencode-go/qwen3.7-plus",
     });
     expect(parseManagedReviewMarker(`${firstMarker}\nbody`)).toEqual({ kind: "file", key: reviewFileKey(reviewPath) });
     expect(parseManagedReviewMarker(`${firstMarker}\n<!-- leetdash-opencode-review-content:invalid -->\nbody`)).toEqual({ kind: "file", key: reviewFileKey(reviewPath) });

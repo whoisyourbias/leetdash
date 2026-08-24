@@ -6,6 +6,7 @@ const truncationNotice = "\n\n> _Review truncated to fit the GitHub comment limi
 const reviewSummaryMarker = "<!-- leetdash-opencode-review -->";
 const reviewFileMarkerPattern = /^<!-- leetdash-opencode-review-file:([a-f0-9]{64}) -->$/;
 const reviewContentMarkerPattern = /^<!-- leetdash-opencode-review-content:([a-f0-9]{64}) -->$/;
+const reviewModelMarkerPattern = /^<!-- leetdash-opencode-review-model:([a-z0-9][a-z0-9./_-]*) -->$/;
 
 class ReviewFailure extends Error {
   constructor({ stage, reason, detail, retryable = false, httpStatus, requestId, clientRequestId, attemptCount }) {
@@ -58,19 +59,28 @@ function reviewContentMarker(contentKey) {
   return `<!-- leetdash-opencode-review-content:${contentKey} -->`;
 }
 
+function reviewModelMarker(model) {
+  if (typeof model !== "string" || !/^[a-z0-9][a-z0-9./_-]*$/.test(model)) {
+    throw new TypeError("Invalid review model.");
+  }
+  return `<!-- leetdash-opencode-review-model:${model} -->`;
+}
+
 function parseManagedReviewMarker(body) {
   if (typeof body !== "string") return undefined;
   if (body === reviewSummaryMarker || body.startsWith(`${reviewSummaryMarker}\n`) || body.startsWith(`${reviewSummaryMarker}\r\n`)) {
     return { kind: "summary" };
   }
-  const [firstLine, secondLine] = body.split(/\r?\n/, 2);
+  const [firstLine, secondLine, thirdLine] = body.split(/\r?\n/, 3);
   const fileMatch = reviewFileMarkerPattern.exec(firstLine);
   if (!fileMatch) return undefined;
   const contentMatch = reviewContentMarkerPattern.exec(secondLine ?? "");
+  const modelMatch = reviewModelMarkerPattern.exec(thirdLine ?? "");
   return {
     kind: "file",
     key: fileMatch[1],
     ...(contentMatch ? { contentKey: contentMatch[1] } : {}),
+    ...(modelMatch ? { model: modelMatch[1] } : {}),
   };
 }
 
@@ -251,28 +261,31 @@ function warningLines(failure) {
   return lines;
 }
 
-function renderReviewFileComment({ path, sourceUrl, contentKey, headSha, runUrl, mascotUrl, markdown, lineCount }) {
+function renderReviewFileComment({ path, sourceUrl, contentKey, model = "opencode-go/deepseek-v4-flash", headSha, runUrl, mascotUrl, markdown, lineCount }) {
   const permalink = Number.isInteger(lineCount) && lineCount > 0
     ? `${sourceUrl}#L1-L${lineCount}`
     : sourceUrl;
   return limitComment([
     reviewFileMarker(path),
     reviewContentMarker(contentKey),
+    reviewModelMarker(model),
     ...brandedHeader({ mascotUrl, title: "찰싹봇의 코드 리뷰" }),
     `파일: [${markdownText(path)}](${markdownText(permalink)})`,
     `커밋: ${markdownText(headSha)}`,
+    `모델: ${markdownText(model)}`,
     `워크플로: ${markdownText(runUrl)}`,
     "",
     markdown,
   ].join("\n"));
 }
 
-function renderReviewFileWarning({ path, sourceUrl, headSha, runUrl, mascotUrl, failure }) {
+function renderReviewFileWarning({ path, sourceUrl, model, headSha, runUrl, mascotUrl, failure }) {
   return limitComment([
     reviewFileMarker(path),
     ...brandedHeader({ mascotUrl, title: "찰싹봇 리뷰 경고" }),
     `파일: [${markdownText(path)}](${markdownText(sourceUrl)})`,
     `커밋: ${markdownText(headSha)}`,
+    ...(model ? [`모델: ${markdownText(model)}`] : []),
     ...warningLines(failure),
     `워크플로: ${markdownText(runUrl)}`,
   ].join("\n"));
@@ -340,6 +353,7 @@ export {
   renderReviewWarning,
   reviewContentKey,
   reviewContentMarker,
+  reviewModelMarker,
   reviewFileKey,
   reviewFileMarker,
   reviewSummaryMarker,

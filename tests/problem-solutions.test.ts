@@ -68,6 +68,43 @@ function progressData(users: ProgressUser[]): ProgressData {
 }
 
 describe("comparable problem index", () => {
+  it("includes dynamic SWEA problems discovered from progress data", () => {
+    const data: ProgressData = {
+      ...progressData([
+        user("mygo", [
+          submission({
+            id: "mygo:swea:25006",
+            userId: "mygo",
+            problemKey: "swea:25006",
+            sourceKey: "swea",
+            submissionKey: "25006",
+            solutionPath: "submissions/whoisyourbias/swea/25006/Solution.java",
+          }),
+        ]),
+      ]),
+      dynamicProblems: [
+        {
+          provider: "swea",
+          problemId: "25006",
+          problemKey: "swea:25006",
+          title: "[Pro] 전기차충전소",
+          difficulty: "D6",
+          sourceUrl: "https://swexpertacademy.com/main/solvingProblem/solvingProblem.do",
+        },
+      ],
+    };
+
+    expect(listComparableProblemParams(data)).toEqual([{ provider: "swea", problemId: "25006" }]);
+    expect(getProblemSolutionDetail("swea", "25006", data)).toMatchObject({
+      problem: {
+        problemKey: "swea:25006",
+        title: "[Pro] 전기차충전소",
+        difficulty: "D6",
+      },
+      solvers: [{ user: { id: "mygo" } }],
+    });
+  });
+
   it("lists only submitted catalog problems with a current solution", () => {
     const data = progressData([
       user("ada", [

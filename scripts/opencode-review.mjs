@@ -18,6 +18,7 @@ import {
   sanitizeReviewMarkdown,
 } from "./opencode-review-core.mjs";
 import { GitHubReviewClient, OpenCodeClient } from "./opencode-review-clients.mjs";
+import { getOpenCodeModelProfile } from "./opencode-api-contract.mjs";
 import {
   hasCompletePullRequestFileList,
   inspectSubmissionChanges,
@@ -28,6 +29,10 @@ const solutionName = /^solution\.[^.\/]+$/i;
 const deliveryDiagnostic = "Comment delivery: GitHub review comment delivery failed.";
 const embeddedSourceRedactionMinimumLength = 16;
 const recoveryMarkerSchemaVersion = 1;
+const qwenReviewLabel = "ai-review:qwen";
+const deepSeekReviewModel = "opencode-go/deepseek-v4-flash";
+const defaultFallbackReviewModel = "opencode-go/mimo-v2.5";
+const defaultHardReviewModel = "opencode-go/qwen3.7-plus";
 
 const safeFailures = Object.freeze({
   "catalog-resolve": ["CATALOG_MAPPING_FAILED", "Submission review paths could not be resolved."],
@@ -145,7 +150,15 @@ async function loadTrustedPullRequestScope({
   });
   if (inspection.errors.length > 0) throw changedFilesLoadFailure();
   const reviewApplicable = inspection.submissionFiles.length > 0;
-  return { reviewApplicable, changedFiles, headRepository: pullRequest.head.repo.full_name };
+  const labels = Array.isArray(pullRequest.labels)
+    ? pullRequest.labels.flatMap((label) => (typeof label?.name === "string" ? [label.name] : []))
+    : [];
+  return {
+    reviewApplicable,
+    changedFiles,
+    headRepository: pullRequest.head.repo.full_name,
+    ...(labels.includes(qwenReviewLabel) ? { forceQwen: true } : {}),
+  };
 }
 
 async function defaultSourceReader(filePath, {
@@ -259,27 +272,101 @@ async function reviewWithRetry({ openCodeClient, model, apiKey, prompt }) {
   }
 }
 
-async function reviewOneFile({ file, readSource, openCodeClient, model, apiKey, cachedContentKey }) {
+function findCatalogProblem(catalog, { sourceKey, submissionKey }) {
+  if (!Array.isArray(catalog?.lists)) return undefined;
+  const list = catalog.lists.find((candidate) => candidate?.key === sourceKey);
+  if (!list) return undefined;
+  const matchesSubmission = (candidate) => (
+    String(candidate?.problemId ?? candidate?.submissionKey ?? "") === submissionKey
+  );
+  const directProblem = Array.isArray(list.problems)
+    ? list.problems.find(matchesSubmission)
+    : undefined;
+  if (directProblem) return directProblem;
+
+  const item = Array.isArray(list.items)
+    ? list.items.find(matchesSubmission)
+    : undefined;
+  if (!item || typeof item.problemKey !== "string" || item.problemKey.length === 0) return item;
+
+  for (const candidateList of catalog.lists) {
+    if (!Array.isArray(candidateList?.problems)) continue;
+    const referencedProblem = candidateList.problems.find((problem) => problem?.problemKey === item.problemKey);
+    if (referencedProblem) return referencedProblem;
+  }
+  return item;
+}
+
+function isHardCatalogProblem(catalog, parsedPath) {
+  const problem = findCatalogProblem(catalog, parsedPath);
+  const provider = String(problem?.provider ?? "").toLowerCase();
+  const difficulty = String(problem?.difficulty ?? "").toLowerCase();
+  if (provider === "leetcode") return difficulty === "hard";
+  if (provider === "programmers") {
+    const level = /^level-(\d+)$/.exec(difficulty);
+    return level ? Number(level[1]) >= 3 : false;
+  }
+  if (provider === "swea") {
+    const level = /^d(\d+)$/i.exec(difficulty);
+    return level ? Number(level[1]) >= 5 : false;
+  }
+  return false;
+}
+
+function fallbackModelForFile({ catalog, parsedPath, fallbackModel, hardModel }) {
+  return isHardCatalogProblem(catalog, parsedPath) ? hardModel : fallbackModel;
+}
+
+function isUsageLimitFailure(error) {
+  return error instanceof ReviewFailure
+    && error.stage === "model-request"
+    && error.reason === "MODEL_USAGE_LIMIT_EXHAUSTED";
+}
+
+async function reviewOneFile({
+  file,
+  readSource,
+  openCodeClient,
+  apiKey,
+  cachedContentKey,
+  cachedModel,
+  selectModel,
+  fallbackAfterDeepSeekLimit,
+  forceReview = false,
+}) {
   let stage = "path-parse";
   let filePath = file.path;
+  let model;
   try {
     const parsed = parseSubmissionSolutionPath(file.path);
     filePath = parsed.path;
     stage = "source-read";
     const source = await readSource(parsed.path);
     const contentKey = reviewContentKey(source);
-    if (cachedContentKey === contentKey) {
-      return { path: filePath, status: "reused", contentKey };
+    model = selectModel(parsed);
+    if (!forceReview && cachedContentKey === contentKey && cachedModel === model) {
+      return { path: filePath, status: "reused", contentKey, model };
     }
     const prompt = buildReviewPrompt({ path: parsed.path, language: parsed.extension, source });
     stage = "model-request";
-    const raw = await reviewWithRetry({ openCodeClient, model, apiKey, prompt });
+    let raw;
+    try {
+      raw = await reviewWithRetry({ openCodeClient, model, apiKey, prompt });
+    } catch (error) {
+      if (model !== deepSeekReviewModel || !isUsageLimitFailure(error)) throw error;
+      model = fallbackAfterDeepSeekLimit(parsed);
+      if (!forceReview && cachedContentKey === contentKey && cachedModel === model) {
+        return { path: filePath, status: "reused", contentKey, model };
+      }
+      raw = await reviewWithRetry({ openCodeClient, model, apiKey, prompt });
+    }
     stage = "model-response";
     const lineCount = source.split("\n").length;
     return {
       path: filePath,
       status: "reviewed",
       contentKey,
+      model,
       lineCount,
       markdown: sanitizeReviewMarkdown(redactModelText(raw, source)),
     };
@@ -288,6 +375,7 @@ async function reviewOneFile({ file, readSource, openCodeClient, model, apiKey, 
       path: filePath,
       status: "warning",
       failure: error instanceof ReviewFailure ? error : failureForStage(stage),
+      ...(model ? { model } : {}),
     };
   }
 }
@@ -304,6 +392,11 @@ async function reviewPullRequest({
   runUrl,
   apiKey,
   model,
+  fallbackModel = defaultFallbackReviewModel,
+  hardModel = defaultHardReviewModel,
+  catalog,
+  forceQwen = false,
+  forceReview = false,
   mascotUrl,
   serverUrl,
   headRepository,
@@ -327,6 +420,7 @@ async function reviewPullRequest({
   let managedCommentsLoaded = false;
   let commentDiscoveryAvailable = true;
   let deliveryFailureCount = 0;
+  let deepSeekUnavailable = false;
 
   const loadManagedComments = async () => {
     if (managedCommentsLoaded) return;
@@ -359,12 +453,16 @@ async function reviewPullRequest({
       activeReviewApplicable = scope.reviewApplicable;
       activeChangedFiles = scope.changedFiles;
       if (typeof scope.headRepository === "string") activeHeadRepository = scope.headRepository;
+      if (scope.forceQwen === true) forceQwen = true;
     }
 
     if (!activeReviewApplicable) {
       markdown = notApplicableMarkdown();
     } else {
-      if (!apiKey || !model) throw reviewConfigurationFailure();
+      if (!apiKey || !model || !fallbackModel || !hardModel) throw reviewConfigurationFailure();
+      if (![model, fallbackModel, hardModel].every((configuredModel) => getOpenCodeModelProfile(configuredModel))) {
+        throw reviewConfigurationFailure();
+      }
       if (activeChangedFiles === undefined) {
         try {
           activeChangedFiles = await loadChangedFiles();
@@ -386,15 +484,28 @@ async function reviewPullRequest({
           .map((comment) => [comment.key, comment]),
       );
 
+      const selectModel = (parsedPath) => {
+        if (forceQwen) return hardModel;
+        if (!deepSeekUnavailable) return model;
+        return fallbackModelForFile({ catalog, parsedPath, fallbackModel, hardModel });
+      };
+      const fallbackAfterDeepSeekLimit = (parsedPath) => {
+        deepSeekUnavailable = true;
+        return fallbackModelForFile({ catalog, parsedPath, fallbackModel, hardModel });
+      };
+
       for (const file of paths) {
         const fileComment = fileComments.get(reviewFileKey(file.path));
         const result = await reviewOneFile({
           file,
           readSource,
           openCodeClient,
-          model,
           apiKey,
           cachedContentKey: fileComment?.contentKey,
+          cachedModel: fileComment?.model,
+          selectModel,
+          fallbackAfterDeepSeekLimit,
+          forceReview,
         });
         results.push(result);
         if (result.status === "reused") continue;
@@ -416,8 +527,8 @@ async function reviewPullRequest({
           result.markdown = injectLinePermalinks(result.markdown, sourceUrl);
         }
         const body = result.status === "reviewed"
-          ? renderReviewFileComment({ path: result.path, sourceUrl, contentKey: result.contentKey, headSha, runUrl, mascotUrl, markdown: result.markdown, lineCount: result.lineCount })
-          : renderReviewFileWarning({ path: result.path, sourceUrl, headSha, runUrl, mascotUrl, failure: result.failure });
+          ? renderReviewFileComment({ path: result.path, sourceUrl, contentKey: result.contentKey, model: result.model, headSha, runUrl, mascotUrl, markdown: result.markdown, lineCount: result.lineCount })
+          : renderReviewFileWarning({ path: result.path, sourceUrl, model: result.model, headSha, runUrl, mascotUrl, failure: result.failure });
         const shouldStopModelRequests = (
           result.status === "warning"
           && result.failure?.stage === "model-request"
@@ -608,7 +719,11 @@ async function main(options = {}) {
     pullNumber: Number(args.pullNumber),
     runUrl,
     apiKey: env.OPENCODE_API_KEY,
-    model: env.OPENCODE_REVIEW_MODEL,
+    model: env.OPENCODE_REVIEW_MODEL || deepSeekReviewModel,
+    fallbackModel: env.OPENCODE_REVIEW_FALLBACK_MODEL || defaultFallbackReviewModel,
+    hardModel: env.OPENCODE_REVIEW_HARD_MODEL || defaultHardReviewModel,
+    catalog: await loadCatalog(),
+    forceReview: env.OPENCODE_FORCE_REVIEW === "true",
     mascotUrl,
     serverUrl: env.GITHUB_SERVER_URL,
     headRepository: trustedHeadRepository,
@@ -669,6 +784,9 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
 export {
   appendReviewSummary,
   defaultSourceReader,
+  fallbackModelForFile,
+  findCatalogProblem,
+  isHardCatalogProblem,
   isRetryableReviewResult,
   loadTrustedPullRequestScope,
   main,

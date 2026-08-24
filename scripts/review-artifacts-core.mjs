@@ -36,9 +36,10 @@ const managedBotLogin = "github-actions[bot]";
 const hex64Pattern = /^[a-f0-9]{64}$/;
 const fileMarkerPattern = /^<!-- leetdash-opencode-review-file:([a-f0-9]{64}) -->$/;
 const contentMarkerPattern = /^<!-- leetdash-opencode-review-content:([a-f0-9]{64}) -->$/;
+const modelMarkerPattern = /^<!-- leetdash-opencode-review-model:[a-z0-9][a-z0-9./_-]* -->$/;
 const mascotImagePattern = /^<img\b/;
 const brandedHeadingPattern = /^##\s+/;
-const metadataLinePattern = /^(?:파일|커밋|워크플로):\s*/;
+const metadataLinePattern = /^(?:파일|커밋|모델|워크플로):\s*/;
 const maxLineReferences = 100;
 const noCommentText = "리뷰 코멘트 없음.";
 
@@ -100,6 +101,7 @@ function stripManagedPrefix(body) {
     const line = lines[index];
     const isPrefixLine = fileMarkerPattern.test(line)
       || contentMarkerPattern.test(line)
+      || modelMarkerPattern.test(line)
       || mascotImagePattern.test(line)
       || brandedHeadingPattern.test(line)
       || metadataLinePattern.test(line)

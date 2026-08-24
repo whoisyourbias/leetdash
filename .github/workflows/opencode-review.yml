@@ -1,23 +1,27 @@
 name: OpenCode Submission Review
-run-name: opencode-review:${{ github.event.workflow_run.head_sha }}
+run-name: opencode-review:${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
 
 on:
   workflow_run:
     workflows: ["Deploy GitHub Pages"]
     types:
       - completed
+  pull_request_target:
+    types:
+      - labeled
 
 permissions: {}
-
-concurrency:
-  group: opencode-review-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_sha }}
-  cancel-in-progress: true
 
 jobs:
   review:
     timeout-minutes: 90
-    if: github.event.workflow_run.event == 'pull_request'
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request') ||
+      (github.event_name == 'pull_request_target' && github.event.action == 'labeled' && github.event.label.name == 'ai-review:qwen')
     runs-on: ubuntu-latest
+    concurrency:
+      group: opencode-review-${{ github.event.workflow_run.head_repository.full_name || github.event.pull_request.head.repo.full_name }}-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
+      cancel-in-progress: true
     permissions:
       contents: read
       checks: write
@@ -37,9 +41,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENCODE_BASE_BRANCH: ${{ github.event.repository.default_branch }}
-          OPENCODE_HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
-          OPENCODE_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          OPENCODE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          OPENCODE_HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name || github.event.pull_request.head.repo.full_name }}
+          OPENCODE_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch || github.event.pull_request.head.ref }}
+          OPENCODE_HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
 
       - name: Checkout trusted pull-request base
         uses: actions/checkout@v6
@@ -59,7 +63,9 @@ jobs:
 
       - name: Run trusted OpenCode review
         id: opencode-review
-        if: github.event.workflow_run.conclusion == 'success' && steps.resolve-pr.outputs.is-draft != 'true'
+        if: >-
+          (github.event_name == 'pull_request_target' || github.event.workflow_run.conclusion == 'success') &&
+          steps.resolve-pr.outputs.is-draft != 'true'
         run: |
           node scripts/opencode-review.mjs \
             --base "${{ steps.resolve-pr.outputs.base-sha }}" \
@@ -69,7 +75,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           OPENCODE_RECOVERY_MARKER_PATH: ${{ runner.temp }}/opencode-review-recovery.json
-          OPENCODE_REVIEW_MODEL: ${{ vars.OPENCODE_REVIEW_MODEL }}
+          OPENCODE_REVIEW_MODEL: ${{ vars.OPENCODE_REVIEW_MODEL || 'opencode-go/deepseek-v4-flash' }}
+          OPENCODE_REVIEW_FALLBACK_MODEL: ${{ vars.OPENCODE_REVIEW_FALLBACK_MODEL || 'opencode-go/mimo-v2.5' }}
+          OPENCODE_REVIEW_HARD_MODEL: ${{ vars.OPENCODE_REVIEW_HARD_MODEL || 'opencode-go/qwen3.7-plus' }}
+          OPENCODE_FORCE_REVIEW: ${{ github.event_name == 'pull_request_target' && 'true' || 'false' }}
 
       - name: Publish retryable failure marker
         if: steps.opencode-review.outcome == 'failure'

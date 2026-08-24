@@ -3,11 +3,14 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
 import {
+  getOpenCodeModelProfile,
   isRetryableStatus,
   openCodeApiModel,
   openCodeChatCompletionsUrl,
+  openCodeMessagesUrl,
   openCodeRequestTimeoutMs,
   parseAssistantResponse,
+  parseMessagesAssistantResponse,
 } from "../scripts/opencode-api-contract.mjs";
 
 describe("opencode-api-contract", () => {
@@ -15,6 +18,41 @@ describe("opencode-api-contract", () => {
     expect(openCodeChatCompletionsUrl).toBe("https://opencode.ai/zen/go/v1/chat/completions");
     expect(openCodeApiModel).toBe("deepseek-v4-flash");
     expect(openCodeRequestTimeoutMs).toBe(300_000);
+  });
+
+  it("maps configured model IDs to their supported API protocols", () => {
+    expect(getOpenCodeModelProfile("opencode-go/mimo-v2.5")).toMatchObject({
+      apiModel: "mimo-v2.5",
+      protocol: "chat-completions",
+      url: openCodeChatCompletionsUrl,
+    });
+    expect(getOpenCodeModelProfile("opencode-go/qwen3.7-plus")).toEqual({
+      apiModel: "qwen3.7-plus",
+      protocol: "messages",
+      url: openCodeMessagesUrl,
+      maxTokens: 8192,
+    });
+    expect(getOpenCodeModelProfile("opencode-go/unknown")).toBeUndefined();
+  });
+
+  it("accepts Anthropic assistant text while ignoring thinking blocks", () => {
+    expect(parseMessagesAssistantResponse({
+      role: "assistant",
+      content: [
+        { type: "thinking", thinking: "private reasoning" },
+        { type: "text", text: "first" },
+        { type: "text", text: "second" },
+      ],
+    })).toEqual({ ok: true, content: "first\nsecond" });
+  });
+
+  it.each([
+    ["wrong role", { role: "user", content: [{ type: "text", text: "review" }] }],
+    ["no text", { role: "assistant", content: [{ type: "thinking", thinking: "secret" }] }],
+    ["blank text", { role: "assistant", content: [{ type: "text", text: " " }] }],
+    ["unsupported block", { role: "assistant", content: [{ type: "tool_use", id: "1" }] }],
+  ])("rejects malformed Anthropic response: %s", (_name, body) => {
+    expect(parseMessagesAssistantResponse(body)).toEqual({ ok: false });
   });
 
   it.each([

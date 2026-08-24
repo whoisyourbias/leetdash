@@ -12,11 +12,15 @@
 | 서비스 | 상태 배지 | 용도 |
 | --- | --- | --- |
 | AI 리뷰 API · OpenCode Go 게이트웨이 | ![OpenCode Go Gateway](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fwhoisyourbias%2Fleetdash%2Fstatus-data%2Fstatus%2Fgateway-status.json) | 코드 리뷰 요청이 거치는 게이트웨이 연결 상태 |
-| AI 리뷰 API · DeepSeek V4 Flash | ![DeepSeek V4 Flash (AI Review)](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fwhoisyourbias%2Fleetdash%2Fstatus-data%2Fstatus%2Fdeepseek-flash-status.json) | 제출 PR의 solution.* 리뷰에 쓰는 모델 응답 상태 |
+| AI 리뷰 API · DeepSeek V4 Flash | ![DeepSeek V4 Flash (AI Review)](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fwhoisyourbias%2Fleetdash%2Fstatus-data%2Fstatus%2Fdeepseek-flash-status.json) | 제출 PR 리뷰의 기본 모델 응답 상태 |
 | GitHub Pages | ![GitHub Pages](https://img.shields.io/github/deployments/whoisyourbias/leetdash/github-pages) | 대시보드 정적 배포 상태 |
 | GitHub Actions | ![GitHub Actions - Deploy](https://img.shields.io/github/actions/workflow/status/whoisyourbias/leetdash/deploy-pages.yml?branch=master) ![GitHub Actions - OpenCode Review](https://img.shields.io/github/actions/workflow/status/whoisyourbias/leetdash/opencode-review.yml) ![GitHub Actions - Sweep](https://img.shields.io/github/actions/workflow/status/whoisyourbias/leetdash/sweep-submission-prs.yml) | 검증·리뷰·머지·배포 CI/CD 워크플로우 상태 |
 
-AI 리뷰 API는 `deepseek-v4-flash` 모델을 OpenCode Go 게이트웨이(`https://opencode.ai/zen/go/v1`)를 통해 사용하며, 저장소 secret `OPENCODE_API_KEY`로 인증합니다 (DeepSeek의 직접 API가 아닙니다). 첫 두 배지는 `deepseek-status-check.yml` 워크플로우가 매시간(hourly) 실행되어 `status-data` 브랜치에 상태를 기록하며, 이 배지가 이를 읽습니다. 워크플로우 실행이 초록색이면 두 probe의 측정과 `status-data` 게시가 모두 성공했다는 뜻이며, 서비스가 내려가 있는 경우에도 측정 자체가 완료되면 게시가 정상 진행되므로 실행은 초록색으로 끝납니다. 즉 초록색 실행은 "서비스가 살아 있다"는 의미가 아니며, 각 API 배지는 해당 서비스의 측정 결과(up/down)를 그대로 표시합니다. GitHub Actions - OpenCode Review 배지는 이와 별개로 리뷰 워크플로우 실행 결과를 나타냅니다. 배지가 오래된 것처럼 보이면 GitHub Actions 탭에서 해당 워크플로우를 수동 실행(`workflow_dispatch`)할 수 있습니다 — GitHub는 공개 저장소에서 60일 이상 기본 브랜치 커밋이 없으면 예약 워크플로우를 일시 중지하므로, 장기간 활동이 없으면 배지 갱신이 멈출 수 있습니다. GitHub Pages 배포 URL: `https://whoisyourbias.github.io/leetdash/`.
+AI 리뷰 API는 OpenCode Go 게이트웨이(`https://opencode.ai/zen/go/v1`)와 저장소 secret `OPENCODE_API_KEY`를 사용합니다. 기본 모델은 `deepseek-v4-flash`입니다. 응답 본문에서 DeepSeek의 `GoUsageLimitError`가 확인되면 해당 workflow 실행에서는 DeepSeek를 더 호출하지 않고, 일반 문제는 `mimo-v2.5`, 어려운 문제는 `qwen3.7-plus`로 리뷰합니다. 어려운 문제는 신뢰된 기본 브랜치의 `data/problem-catalog.json`을 기준으로 LeetCode Hard, Programmers Level 3 이상, SWEA D5 이상이며, 미분류 문제는 일반 문제로 취급합니다. Qwen은 복잡한 알고리즘 리뷰 품질을 우선하는 경로이고, MiMo는 일반 문제의 비용 효율을 우선하는 경로입니다.
+
+PR에 `ai-review:qwen` 라벨을 추가하면 난이도와 DeepSeek 상태에 관계없이 모든 대상 파일을 Qwen으로 즉시 강제 재리뷰합니다. 라벨이 유지되는 동안 이후 자동 리뷰도 Qwen을 선택합니다. 성공한 파일 리뷰 캐시는 소스 내용 해시와 모델이 모두 같을 때만 재사용하므로 모델이 바뀌면 같은 소스도 다시 리뷰합니다. 모델 metadata가 없는 기존 댓글은 한 번 cache miss가 됩니다.
+
+첫 두 상태 배지는 `deepseek-status-check.yml` 워크플로우가 매시간 실행되어 `status-data` 브랜치에 기록한 게이트웨이와 DeepSeek probe 결과입니다. 특히 DeepSeek 배지는 MiMo 또는 Qwen fallback의 상태나 사용 가능 여부를 의미하지 않습니다. 워크플로우 실행이 초록색이면 두 probe의 측정과 `status-data` 게시가 모두 성공했다는 뜻이며, 각 API 배지는 해당 서비스의 측정 결과를 표시합니다. GitHub Actions - OpenCode Review 배지는 이와 별개로 리뷰 워크플로우 실행 결과를 나타냅니다. 공개 저장소에서 기본 브랜치 커밋이 60일 이상 없으면 GitHub가 예약 workflow를 중지할 수 있습니다. GitHub Pages 배포 URL: `https://whoisyourbias.github.io/leetdash/`.
 
 ## 제출 규칙
 
@@ -54,7 +58,7 @@ AI 리뷰 API는 `deepseek-v4-flash` 모델을 OpenCode Go 게이트웨이(`http
 
 제출 대상이 `data/problem-catalog.json`에 아직 없으면 운영자가 카탈로그 변경 PR을 먼저 머지합니다. 단, SWEA는 사용자가 만든 문제가 수시로 추가되므로 숫자형 문제 번호를 즉시 제출할 수 있습니다. 미등록 SWEA 문제는 제출의 `meta.json` 문제 스냅샷을 사용해 빌드 시 카탈로그에 합쳐집니다.
 
-PR은 `validate` 검증과 `opencode-review-gate` 상태를 통과하면 다른 PR의 GitHub Pages 배포 완료를 기다리지 않고 머지합니다. `opencode-review` Check Run은 상세 리뷰 기록으로 남고, 병합 gate는 최신 OpenCode workflow 실행 및 재시도 번호와 정확히 일치해야 합니다. 찰싹봇은 변경된 `solution.*` 파일을 하나씩 순서대로 리뷰하고, 각 OpenCode 응답 직후 해당 파일의 한국어 코멘트를 게시합니다. 각 파일 리뷰의 파일 경로는 리뷰한 head 커밋의 전체 소스 파일로 연결됩니다. 이전에 성공적으로 리뷰한 파일의 내용 해시가 같으면 기존 리뷰를 유지하고 OpenCode를 다시 호출하지 않으며, 내용이 바뀌었거나 이전 리뷰가 경고로 끝난 파일은 다시 리뷰합니다. 파일 하나의 리뷰나 코멘트 전달이 실패해도 경고를 남기고 다음 파일을 계속 처리하지만, 해당 gate는 실패하므로 sweep이 PR을 머지하지 않습니다. 세부 동작과 장애 복구 방식은 [Sweep After OpenCode Review 설계](docs/superpowers/specs/2026-07-23-sweep-after-opencode-review-design.md)에 정리되어 있습니다.
+PR은 `validate` 검증과 `opencode-review-gate` 상태를 통과하면 다른 PR의 GitHub Pages 배포 완료를 기다리지 않고 머지합니다. `opencode-review` Check Run은 상세 리뷰 기록으로 남고, 병합 gate는 최신 OpenCode workflow 실행 및 재시도 번호와 정확히 일치해야 합니다. 찰싹봇은 변경된 `solution.*` 파일을 하나씩 순서대로 리뷰하고, 각 OpenCode 응답 직후 사용 모델 metadata를 포함한 한국어 코멘트를 게시합니다. 각 파일 리뷰의 파일 경로는 리뷰한 head 커밋의 전체 소스 파일로 연결됩니다. 이전에 성공적으로 리뷰한 파일은 내용 해시와 사용 모델이 모두 같을 때만 유지합니다. 파일 하나의 리뷰나 코멘트 전달이 실패해도 경고를 남기고 다음 파일을 계속 처리하지만, 해당 gate는 실패하므로 sweep이 PR을 머지하지 않습니다. 세부 동작과 장애 복구 방식은 [Sweep After OpenCode Review 설계](docs/superpowers/specs/2026-07-23-sweep-after-opencode-review-design.md)에 정리되어 있습니다.
 
 저장소는 merge commit만 허용하며, squash merge와 rebase merge는 사용하지 않습니다.
 

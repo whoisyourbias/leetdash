@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
-const { defaultSourceReader, loadTrustedPullRequestScope, main, reviewPullRequest } = await import("../scripts/opencode-review.mjs");
+const { defaultSourceReader, isHardCatalogProblem, loadTrustedPullRequestScope, main, reviewPullRequest } = await import("../scripts/opencode-review.mjs");
 const { GitHubDeliveryFailure, OpenCodeClient } = await import("../scripts/opencode-review-clients.mjs");
 const { ReviewFailure, reviewContentKey, reviewContentMarker, reviewFileKey } = await import("../scripts/opencode-review-core.mjs");
 const { isSubmissionArtifactName } = await import("../scripts/validate-submission-pr.mjs");
@@ -89,6 +89,43 @@ function reviewOptions(overrides = {}) {
 }
 
 describe("reviewPullRequest", () => {
+  it("routes trusted catalog difficulty thresholds to the hard model", () => {
+    const parsed = { sourceKey: "source", submissionKey: "1" };
+    const withProblem = (provider, difficulty) => ({
+      lists: [{ key: "source", problems: [{ provider, problemId: "1", difficulty }] }],
+    });
+    expect(isHardCatalogProblem(withProblem("leetcode", "hard"), parsed)).toBe(true);
+    expect(isHardCatalogProblem(withProblem("leetcode", "medium"), parsed)).toBe(false);
+    expect(isHardCatalogProblem(withProblem("programmers", "level-3"), parsed)).toBe(true);
+    expect(isHardCatalogProblem(withProblem("programmers", "level-2"), parsed)).toBe(false);
+    expect(isHardCatalogProblem(withProblem("swea", "D5"), parsed)).toBe(true);
+    expect(isHardCatalogProblem(withProblem("swea", "D4"), parsed)).toBe(false);
+    expect(isHardCatalogProblem({ lists: [] }, parsed)).toBe(false);
+  });
+
+  it("resolves an items-only catalog entry through its canonical problemKey", () => {
+    const parsed = { sourceKey: "programmers-high-score-kit", submissionKey: "42579" };
+    const catalogWithReferencedProblem = {
+      lists: [
+        {
+          key: "programmers-high-score-kit",
+          items: [{ problemKey: "programmers:42579", submissionKey: "42579" }],
+        },
+        {
+          key: "programmers",
+          problems: [{
+            provider: "programmers",
+            problemId: "42579",
+            problemKey: "programmers:42579",
+            difficulty: "level-3",
+          }],
+        },
+      ],
+    };
+
+    expect(isHardCatalogProblem(catalogWithReferencedProblem, parsed)).toBe(true);
+  });
+
   it("reuses an unchanged successful file review without calling OpenCode", async () => {
     const source = "class Solution {}";
     const mutations = [];
@@ -100,7 +137,7 @@ describe("reviewPullRequest", () => {
     });
     options.githubClient.listManagedReviewComments = async () => [
       { id: 31, kind: "summary" },
-      { id: 32, kind: "file", key: reviewFileKey(firstPath), contentKey: reviewContentKey(source) },
+      { id: 32, kind: "file", key: reviewFileKey(firstPath), contentKey: reviewContentKey(source), model: "opencode-go/deepseek-v4-flash" },
     ];
     options.githubClient.upsertReviewComment = async (value) => { mutations.push(value); };
 
@@ -155,6 +192,181 @@ describe("reviewPullRequest", () => {
     expect(result.results[0].status).toBe("reviewed");
   });
 
+  it("treats a legacy content-only cache entry as a one-time model-aware cache miss", async () => {
+    const source = "class Solution {}";
+    let reviewCalls = 0;
+    const { options } = reviewOptions({
+      readFile: async () => source,
+      openCodeClient: { review: async () => { reviewCalls += 1; return passResult(); } },
+    });
+    options.githubClient.listManagedReviewComments = async () => [{
+      id: 32,
+      kind: "file",
+      key: reviewFileKey(firstPath),
+      contentKey: reviewContentKey(source),
+    }];
+
+    const result = await reviewPullRequest(options);
+
+    expect(reviewCalls).toBe(1);
+    expect(result.results[0]).toMatchObject({ status: "reviewed", model: "opencode-go/deepseek-v4-flash" });
+  });
+
+  it("falls back from a DeepSeek usage limit to MiMo for an ordinary problem", async () => {
+    const models = [];
+    const { options, comments } = reviewOptions({
+      openCodeClient: { review: async ({ model }) => {
+        models.push(model);
+        if (model === "opencode-go/deepseek-v4-flash") {
+          throw new ReviewFailure({
+            stage: "model-request",
+            reason: "MODEL_USAGE_LIMIT_EXHAUSTED",
+            detail: "safe",
+          });
+        }
+        return passResult();
+      } },
+    });
+
+    const result = await reviewPullRequest(options);
+
+    expect(models).toEqual(["opencode-go/deepseek-v4-flash", "opencode-go/mimo-v2.5"]);
+    expect(result.results[0]).toMatchObject({ status: "reviewed", model: "opencode-go/mimo-v2.5" });
+    expect(comments[0].body).toContain("<!-- leetdash-opencode-review-model:opencode-go/mimo-v2.5 -->");
+  });
+
+  it("reuses a matching fallback review after DeepSeek reports its usage limit", async () => {
+    const source = "class Solution {}";
+    const models = [];
+    const mutations = [];
+    const { options } = reviewOptions({
+      readFile: async () => source,
+      openCodeClient: { review: async ({ model }) => {
+        models.push(model);
+        throw new ReviewFailure({ stage: "model-request", reason: "MODEL_USAGE_LIMIT_EXHAUSTED", detail: "safe" });
+      } },
+    });
+    options.githubClient.listManagedReviewComments = async () => [
+      { id: 31, kind: "summary" },
+      {
+        id: 32,
+        kind: "file",
+        key: reviewFileKey(firstPath),
+        contentKey: reviewContentKey(source),
+        model: "opencode-go/mimo-v2.5",
+      },
+    ];
+    options.githubClient.upsertReviewComment = async (value) => { mutations.push(value); };
+
+    const result = await reviewPullRequest(options);
+
+    expect(models).toEqual(["opencode-go/deepseek-v4-flash"]);
+    expect(result.results[0]).toMatchObject({ status: "reused", model: "opencode-go/mimo-v2.5" });
+    expect(mutations.map(({ commentId }) => commentId)).toEqual([31]);
+  });
+
+  it("falls back from a DeepSeek usage limit to Qwen for a hard problem", async () => {
+    const hardPath = "submissions/ada/programmers/999/solution.java";
+    const models = [];
+    const { options } = reviewOptions({
+      changedFiles: [{ status: "A", path: hardPath }],
+      catalog: { lists: [{ key: "programmers", problems: [{ provider: "programmers", problemId: "999", difficulty: "level-3" }] }] },
+      openCodeClient: { review: async ({ model }) => {
+        models.push(model);
+        if (model === "opencode-go/deepseek-v4-flash") {
+          throw new ReviewFailure({ stage: "model-request", reason: "MODEL_USAGE_LIMIT_EXHAUSTED", detail: "safe" });
+        }
+        return passResult();
+      } },
+    });
+
+    const result = await reviewPullRequest(options);
+
+    expect(models).toEqual(["opencode-go/deepseek-v4-flash", "opencode-go/qwen3.7-plus"]);
+    expect(result.results[0]).toMatchObject({ status: "reviewed", model: "opencode-go/qwen3.7-plus" });
+  });
+
+  it("keeps DeepSeek disabled after its usage limit and routes every later file by difficulty", async () => {
+    const normalPath = "submissions/ada/programmers/100/solution.java";
+    const hardPath = "submissions/ada/programmers/999/solution.java";
+    const models = [];
+    const { options } = reviewOptions({
+      changedFiles: [{ status: "A", path: normalPath }, { status: "A", path: hardPath }],
+      catalog: {
+        lists: [{ key: "programmers", problems: [
+          { provider: "programmers", problemId: "100", difficulty: "level-2" },
+          { provider: "programmers", problemId: "999", difficulty: "level-3" },
+        ] }],
+      },
+      openCodeClient: { review: async ({ model }) => {
+        models.push(model);
+        if (models.length === 1) {
+          throw new ReviewFailure({ stage: "model-request", reason: "MODEL_USAGE_LIMIT_EXHAUSTED", detail: "safe" });
+        }
+        return passResult();
+      } },
+    });
+
+    const result = await reviewPullRequest(options);
+
+    expect(models).toEqual([
+      "opencode-go/deepseek-v4-flash",
+      "opencode-go/mimo-v2.5",
+      "opencode-go/qwen3.7-plus",
+    ]);
+    expect(result.results.map(({ model }) => model)).toEqual([
+      "opencode-go/mimo-v2.5",
+      "opencode-go/qwen3.7-plus",
+    ]);
+  });
+
+  it("forces Qwen and bypasses the model-aware cache for a label-triggered rereview", async () => {
+    const source = "class Solution {}";
+    const models = [];
+    const { options } = reviewOptions({
+      forceQwen: true,
+      forceReview: true,
+      readFile: async () => source,
+      openCodeClient: { review: async ({ model }) => { models.push(model); return passResult(); } },
+    });
+    options.githubClient.listManagedReviewComments = async () => [{
+      id: 32,
+      kind: "file",
+      key: reviewFileKey(firstPath),
+      contentKey: reviewContentKey(source),
+      model: "opencode-go/qwen3.7-plus",
+    }];
+
+    const result = await reviewPullRequest(options);
+
+    expect(models).toEqual(["opencode-go/qwen3.7-plus"]);
+    expect(result.results[0]).toMatchObject({ status: "reviewed", model: "opencode-go/qwen3.7-plus" });
+  });
+
+  it("does not cascade from a Qwen usage limit to another model", async () => {
+    const models = [];
+    const { options } = reviewOptions({
+      forceQwen: true,
+      openCodeClient: { review: async ({ model }) => {
+        models.push(model);
+        throw new ReviewFailure({
+          stage: "model-request",
+          reason: "MODEL_USAGE_LIMIT_EXHAUSTED",
+          detail: "safe",
+        });
+      } },
+    });
+
+    const result = await reviewPullRequest(options);
+
+    expect(models).toEqual(["opencode-go/qwen3.7-plus"]);
+    expect(result.results[0]).toMatchObject({
+      status: "warning",
+      model: "opencode-go/qwen3.7-plus",
+      failure: { reason: "MODEL_USAGE_LIMIT_EXHAUSTED", attemptCount: 1 },
+    });
+  });
+
   it("mixes reused and newly reviewed files without rewriting the reused comment", async () => {
     const sources = new Map([
       [firstPath, "class Solution { int first; }"],
@@ -169,7 +381,7 @@ describe("reviewPullRequest", () => {
     });
     options.githubClient.listManagedReviewComments = async () => [
       { id: 31, kind: "summary" },
-      { id: 32, kind: "file", key: reviewFileKey(firstPath), contentKey: reviewContentKey(sources.get(firstPath)) },
+      { id: 32, kind: "file", key: reviewFileKey(firstPath), contentKey: reviewContentKey(sources.get(firstPath)), model: "opencode-go/deepseek-v4-flash" },
       { id: 33, kind: "file", key: reviewFileKey(secondPath), contentKey: reviewContentKey("old second source") },
     ];
     options.githubClient.upsertReviewComment = async (value) => { mutations.push(value); };
@@ -807,6 +1019,29 @@ describe("reviewPullRequest", () => {
 });
 
 describe("trusted pull-request scope", () => {
+  it("derives the Qwen override only from the trusted pull-request labels", async () => {
+    const scope = await loadTrustedPullRequestScope({
+      githubClient: {
+        getPullRequest: async () => ({
+          number: 42,
+          changed_files: 1,
+          user: { login: "ada" },
+          labels: [{ name: "ai-review:qwen" }],
+          base: { sha: "base-sha" },
+          head: { sha: "head-sha", repo: { full_name: "fork-user/leetdash" } },
+        }),
+        listPullRequestFiles: async () => [{ status: "added", filename: firstPath }],
+      },
+      pullNumber: 42,
+      baseSha: "base-sha",
+      headSha: "head-sha",
+      catalog,
+      users,
+    });
+
+    expect(scope.forceQwen).toBe(true);
+  });
+
   it("derives review applicability from GitHub API file data", async () => {
     const calls = [];
     const scope = await loadTrustedPullRequestScope({
