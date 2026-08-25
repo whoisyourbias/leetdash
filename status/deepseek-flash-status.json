@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "label": "DeepSeek V4 Flash (AI Review)",
-  "message": "up",
-  "color": "brightgreen",
-  "lastChecked": "2026-08-25T02:55:46.480Z"
+  "message": "down",
+  "color": "red",
+  "lastChecked": "2026-08-25T03:47:15.423Z"
 }
