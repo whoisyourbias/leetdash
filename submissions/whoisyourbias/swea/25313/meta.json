@@ -1,12 +1,12 @@
 {
   "status": "solved",
-  "language": "text/x-java",
+  "language": "Java",
   "solvedAt": "2026-08-26T12:54:05.846Z",
   "problem": {
     "provider": "swea",
     "problemId": "25313",
     "title": "[Pro] 단어암기장",
-    "difficulty": "Unknown",
+    "difficulty": "D6",
     "sourceUrl": "https://swexpertacademy.com/main/solvingProblem/solvingProblem.do"
   }
 }
