@@ -32,16 +32,14 @@ class Solution {
                 return;
             this.cost += (last_dir == cur_dir ? 100 : 600);
         }
-        @Override
-        public String toString() {
-            return "[" + "r:" + r + "c:" + c +"]";
-        }
     }
     static int N;
+    static int min;
     static ArrayDeque<BFSStatus> q;
     static long[][][] dp;
     public int solution(int[][] board) {
         N=board.length;
+        min =Integer.MAX_VALUE;
         q = new ArrayDeque<>();
         dp = new long[N][N][4];
         for (int i = 0;i<N;i++)
@@ -54,11 +52,21 @@ class Solution {
             BFSStatus b = q.poll();
             
             b.calculateCostByLastDir();
-            if ((b.cur_dir != -1) && (dp[b.r][b.c][b.cur_dir] != Long.MAX_VALUE) &&  
+            
+            if (b.cur_dir!=-1) {
+                if ((dp[b.r][b.c][b.cur_dir] != Long.MAX_VALUE) &&  
                 (dp[b.r][b.c][b.cur_dir] < b.cost))
-                continue;
-            if (b.cur_dir!=-1)
+                    continue;
+                
+                if (b.cost > min)
+                    continue;
+                
                 dp[b.r][b.c][b.cur_dir] = b.cost;
+                if ((b.r == N-1) && (b.c == N-1))
+                    min = (int)Math.min(min, b.cost);
+            }
+                
+            
             
             if (b.visited[b.r][b.c])
                 continue;
@@ -83,14 +91,10 @@ class Solution {
                 nb.cur_dir = i;
                 if ((nb.cur_dir != -1) && 
                     (dp[nb.r][nb.c][nb.cur_dir] != Long.MAX_VALUE) &&  
-                    (dp[nb.r][nb.c][nb.cur_dir] < b.cost))
+                    (dp[nb.r][nb.c][nb.cur_dir] < nb.cost))
                     continue;
                 q.addFirst(nb);
             }
-        }
-        int min = Integer.MAX_VALUE;
-        for (int i = 0 ; i < 4; i++) {
-            min = (int)Math.min(dp[N-1][N-1][i], min);
         }
         return min;
     }
