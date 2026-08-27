@@ -10,7 +10,7 @@ class Solution {
     class BFSStatus {
         boolean[][] visited;
         int used;
-        int cost;
+        long cost;
         int r;
         int c;
         int last_dir;
@@ -39,33 +39,33 @@ class Solution {
     }
     static int N;
     static ArrayDeque<BFSStatus> q;
-    static int[][] dp;
+    static long[][] dp;
     public int solution(int[][] board) {
         N=board.length;
         q = new ArrayDeque<>();
-        dp = new int[N][N];
+        dp = new long[N][N];
         for (int i = 0;i<N;i++)
             for(int j =0;j<N;j++)
-                dp[i][j] = Integer.MAX_VALUE;
+                dp[i][j] = Long.MAX_VALUE;
         BFSStatus init = new BFSStatus(0,0);
         q.add(init);
         while (!q.isEmpty()) {
             BFSStatus b = q.poll();
-            if (b.visited[b.r][b.c])
-                continue;
-            b.visited[b.r][b.c]=true;
             
             b.calculateCostByLastDir();
-            if ((dp[b.r][b.c] != Integer.MAX_VALUE) &&  
+            if ((dp[b.r][b.c] != Long.MAX_VALUE) &&  
                 (dp[b.r][b.c] < b.cost))
                 continue;
             dp[b.r][b.c] = b.cost;
+            
+            if (b.visited[b.r][b.c])
+                continue;
+            b.visited[b.r][b.c]=true;
             
             if (b.r == N-1 && b.c == N-1) {
                 continue;
             }
             
-            // caculate cur dir
             
             for (int i = 0; i < 4; i++) {
                 int nextr = b.r + ROWS[i];
@@ -87,6 +87,6 @@ class Solution {
             }
         }
         
-        return dp[N-1][N-1];
+        return (int)dp[N-1][N-1];
     }
 }
