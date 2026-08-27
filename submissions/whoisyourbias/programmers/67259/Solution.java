@@ -40,12 +40,15 @@ class Solution {
     static int N;
     static int min;
     static ArrayDeque<BFSStatus> q;
-    
+    static int[][] dp;
     public int solution(int[][] board) {
         N=board.length;
         min = Integer.MAX_VALUE;
         q = new ArrayDeque<>();
-        
+        dp = new int[N][N];
+        for (int i = 0;i<N;i++)
+            for(int j =0;j<N;j++)
+                dp[i][j] = Integer.MAX_VALUE;
         BFSStatus init = new BFSStatus(0,0);
         q.add(init);
         while (!q.isEmpty()) {
@@ -54,7 +57,10 @@ class Solution {
                 continue;
             if (b.visited[b.r][b.c])
                 continue;
-            
+            if ((dp[b.r][b.c] != Integer.MAX_VALUE) &&  
+                (dp[b.r][b.c] < b.cost))
+                continue;
+            dp[b.r][b.c] = b.cost;
             b.visited[b.r][b.c]=true;
             
             b.calculateCostByLastDir();
