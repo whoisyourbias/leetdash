@@ -39,32 +39,30 @@ class Solution {
     }
     static int N;
     static ArrayDeque<BFSStatus> q;
-    static long[][] dp;
+    static long[][][] dp;
     public int solution(int[][] board) {
         N=board.length;
         q = new ArrayDeque<>();
-        dp = new long[N][N];
+        dp = new long[N][N][4];
         for (int i = 0;i<N;i++)
-            for(int j =0;j<N;j++)
-                dp[i][j] = Long.MAX_VALUE;
+            for(int j =0;j<N;j++)            
+                for(int k=0;k<4;k++)
+                    dp[i][j][k] = Long.MAX_VALUE;
         BFSStatus init = new BFSStatus(0,0);
         q.add(init);
         while (!q.isEmpty()) {
             BFSStatus b = q.poll();
             
             b.calculateCostByLastDir();
-            if ((dp[b.r][b.c] != Long.MAX_VALUE) &&  
-                (dp[b.r][b.c] < b.cost))
+            if ((b.cur_dir != -1) && (dp[b.r][b.c][b.cur_dir] != Long.MAX_VALUE) &&  
+                (dp[b.r][b.c][b.cur_dir] < b.cost))
                 continue;
-            dp[b.r][b.c] = b.cost;
+            if (b.cur_dir!=-1)
+                dp[b.r][b.c][b.cur_dir] = b.cost;
             
             if (b.visited[b.r][b.c])
                 continue;
             b.visited[b.r][b.c]=true;
-            
-            if (b.r == N-1 && b.c == N-1) {
-                continue;
-            }
             
             
             for (int i = 0; i < 4; i++) {
@@ -86,7 +84,10 @@ class Solution {
                 q.addFirst(nb);
             }
         }
-        
-        return (int)dp[N-1][N-1];
+        int min = Integer.MAX_VALUE;
+        for (int i = 0 ; i < 4; i++) {
+            min = (int)Math.min(dp[N-1][N-1][i], min);
+        }
+        return min;
     }
 }
