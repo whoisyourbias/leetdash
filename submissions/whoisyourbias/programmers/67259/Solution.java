@@ -45,9 +45,9 @@ class Solution {
         q = new ArrayDeque<>();
         dp = new long[N][N][4];
         for (int i = 0;i<N;i++)
-            for(int j =0;j<N;j++)            
-                for(int k=0;k<4;k++)
-                    dp[i][j][k] = Long.MAX_VALUE;
+            for(int j =0;j<N;j++)
+                Arrays.fill(dp[i][j], Long.MAX_VALUE);
+        
         BFSStatus init = new BFSStatus(0,0);
         q.add(init);
         while (!q.isEmpty()) {
@@ -81,6 +81,10 @@ class Solution {
                 nb.c = nextc;
                 nb.last_dir = nb.cur_dir;
                 nb.cur_dir = i;
+                if ((nb.cur_dir != -1) && 
+                    (dp[nb.r][nb.c][nb.cur_dir] != Long.MAX_VALUE) &&  
+                    (dp[nb.r][nb.c][nb.cur_dir] < b.cost))
+                    continue;
                 q.addFirst(nb);
             }
         }
