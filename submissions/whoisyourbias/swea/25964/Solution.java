@@ -239,10 +239,6 @@ class UserSolution {
 			int c = 0;
 			for (int i = 0; (i < sSize && c < 5); i++) {
 				ExtendedSlot es = s.poll();
-				if (deleted.contains(es)) {
-					tmp.add(es);
-					continue;
-				}
 				res_s.carlist[c++] = es.mCarNo;
 				tmp.add(es);
 			}
@@ -257,9 +253,7 @@ class UserSolution {
 				ExtendedSlot p = gps.remove(0);
 
 				// 견인되어야하는 차들.
-				if (deleted.contains(p)) {
-					// lazy deletion 초기화
-					noToTrset.get(p.no).remove(p);
+				if (deleted.remove(p)) {
 					continue;
 				}
 
