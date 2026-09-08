@@ -20,7 +20,7 @@ export default function PrivacyPage() {
             LeetCode, Programmers, SWEA에서 통과한 풀이를 사용자의 GitHub fork와 중앙 Leetdash 저장소의
             Draft Pull Request로 전송하는 Chrome 확장 프로그램에 적용됩니다.
           </p>
-          <p className="privacy-updated">최종 업데이트: 2026년 8월 17일</p>
+          <p className="privacy-updated">최종 업데이트: 2026년 9월 8일</p>
         </div>
       </header>
 
@@ -28,7 +28,7 @@ export default function PrivacyPage() {
         <section aria-labelledby="privacy-data">
           <h2 id="privacy-data">처리하는 데이터</h2>
           <ul>
-            <li>GitHub OAuth access token, GitHub 로그인 ID와 프로필 이미지 URL</li>
+            <li>GitHub OAuth access token과 refresh token, 각 토큰의 만료 시각, GitHub 로그인 ID와 프로필 이미지 URL</li>
             <li>지원 사이트의 문제 페이지 URL과 제목</li>
             <li>제출 시점의 소스 코드와 선택된 프로그래밍 언어</li>
             <li>Accepted 시각, 동기화 상태, 생성된 Pull Request 주소</li>
@@ -65,11 +65,15 @@ export default function PrivacyPage() {
           <h2 id="privacy-retention">저장과 삭제</h2>
           <ul>
             <li>
-              GitHub OAuth access token은 <code>chrome.storage.local</code>에 저장되며 웹 페이지에 노출하지
-              않습니다.
+              GitHub OAuth access token과 refresh token 및 만료 시각은 <code>chrome.storage.local</code>에
+              저장되며 웹 페이지에 노출하지 않습니다. access token은 만료 전에 자동 교체됩니다.
             </li>
             <li>동기화 대기 중인 코드는 로컬 큐에 저장되고 GitHub 업로드가 완료되면 로컬 코드 본문을 제거합니다.</li>
-            <li>로그아웃하면 인증 정보가 제거됩니다. 미동기화 코드가 있으면 삭제 여부를 먼저 확인합니다.</li>
+            <li>
+              로그아웃하면 인증 정보가 제거됩니다. 자동 갱신이 불가능해 재로그인이 필요한 경우에는 인증 토큰만
+              제거하고 미동기화 코드는 보존합니다. 다른 계정 전환을 위해 사용자가 삭제를 확인한 경우에만
+              미동기화 코드를 제거합니다.
+            </li>
             <li>GitHub에 올라간 커밋과 Pull Request의 보관 및 삭제는 GitHub와 각 저장소의 정책 및 권한을 따릅니다.</li>
             <li>확장 프로그램을 제거하면 Chrome이 해당 확장의 로컬 저장 데이터를 제거합니다.</li>
           </ul>
