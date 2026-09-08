@@ -61,7 +61,11 @@ class Solution {
                 }
                 
                 for (int link: l[k.locId].linked) {
-                    
+                    if (link == destination) {
+                        aswK = new Kruskal(link, k.moved+1);
+                        pq.clear();
+                        break;
+                    }
                     if (!union(k.locId, link))
                         continue;
                     pq.add(new Kruskal(link ,k.moved+1));
