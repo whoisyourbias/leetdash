@@ -11,6 +11,7 @@ coverage
 .data
 **/.DS_Store
 **/.idea/
+.worktrees/
 
 # =========================
 # IntelliJ IDEA / Android Studio
