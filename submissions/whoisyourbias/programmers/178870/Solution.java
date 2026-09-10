@@ -14,7 +14,18 @@ class Solution {
         int sum = sequence[l];
         while (l <= r) {
             if (sum == k) {
-                lst.add(new KV(r-l, l, r-1));
+                if (lst.size() == 0) {
+                    lst.add(new KV(r-l, l, r-1));
+                } else {
+                    if (lst.get(0).length > r-l) {
+                        lst.clear();
+                        lst.addFirst(new KV(r-l, l, r-1));
+                    } else if (lst.get(0).length == r-l) {
+                    } else {
+                        
+                    }
+                }
+                        
                 l=l+1;
                 r=l+1;
                 if (l == sequence.length)
@@ -33,12 +44,6 @@ class Solution {
                 l++;
             }
         }
-        
-        Collections.sort(lst, (a,b) -> {
-            if (a.length == b.length)
-                return a.l - b.l;
-            return a.length - b.length;
-        });
         int[] answer = new int[2];
         answer[0] = lst.get(0).l;
         answer[1] = lst.get(0).r;
