@@ -15,7 +15,7 @@ class Solution {
         while (l <= r) {
             if (sum == k) {
                 lst.add(new KV(r-l, l, r-1));
-                l=r;
+                l=l+1;
                 r=l+1;
                 if (l == sequence.length)
                     break;
