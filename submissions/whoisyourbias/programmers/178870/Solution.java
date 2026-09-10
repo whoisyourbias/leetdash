@@ -13,6 +13,15 @@ class Solution {
         int r = l + 1;
         int sum = sequence[l];
         while (l <= r) {
+            if (lst.size() != 0 && lst.get(0).length <= r-l) {
+                l=l+1;
+                r=l+1;
+                if (l >= sequence.length)
+                    break;
+                sum=sequence[l];
+                continue;
+            }
+            
             if (sum == k) {
                 if (lst.size() == 0) {
                     lst.add(new KV(r-l, l, r-1));
@@ -21,9 +30,7 @@ class Solution {
                         lst.clear();
                         lst.addFirst(new KV(r-l, l, r-1));
                     } else if (lst.get(0).length == r-l) {
-                    } else {
-                        
-                    }
+                    } else {}
                 }
                         
                 l=l+1;
