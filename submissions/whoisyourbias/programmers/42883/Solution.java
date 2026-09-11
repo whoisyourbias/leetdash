@@ -13,14 +13,12 @@ class Solution {
         String answer = "";
         
         visited = new boolean[number.length()];
-        selected = new String[number.length()- k];
+        selected = new String[number.length()];
         max = number.length() - k;
         n = number;
         lst = new ArrayList<>();
         perm(0,0);
         Collections.sort(lst, (a,b) -> b-a);
-        if (lst.size() == 0)
-            return "0";
         return String.valueOf(lst.get(0));
     }
     
