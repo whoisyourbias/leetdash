@@ -3,6 +3,7 @@ import java.util.*;
 class Solution {
     public int solution(int n, int[] stations, int w) {
         int answer = 0;       
+        // 아직 커버되지 않은 왼쪽끝
         int left = 1;
         double coverageW = w * 2 + 1;
         for (int s : stations) {
@@ -10,13 +11,13 @@ class Solution {
             int lend = Math.max(1, s - w);
             int rend = Math.min(n, s + w);
             
-            if (lend - 1 - left > 0) {
+            if (left < lend) {
                 int v = (int) Math.ceil((double)(lend-1 + 1 - left) / coverageW);
                 answer += v;
             }
-            left = Math.min(n, rend + 1);
+            left =rend + 1;
         }
-        if (n - left > 0) {
+        if (left <= n) {
             int v = (int) Math.ceil((double)(n + 1 - left) / coverageW);
             answer += v;
         }
