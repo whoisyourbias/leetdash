@@ -32,12 +32,12 @@ class Solution {
         int coverageW = w * 2 + 1;
         for (Interval i : lst) {
            // System.out.println(i);
-            if ((i.to - i.from) % coverageW == 0) {
-                answer += (i.to - i.from) / coverageW;
+            if ((i.to + 1 - i.from) % coverageW == 0) {
+                answer += (i.to + 1 - i.from) / coverageW;
             } else {
-                answer += 1 + (i.to - i.from) / coverageW;    
+                answer += 1 + (i.to + 1 - i.from) / coverageW;    
             }        
         }
-        return answer + 1;
+        return answer;
     }
 }
