@@ -1,20 +1,8 @@
 import java.util.*;
 
 class Solution {
-    class Interval {
-        int from;
-        int to;
-        Interval(int from, int to) {this.from=from;this.to=to;}
-        @Override
-        public String toString() {
-            return "from"+from +"|"+"to"+to;
-        }
-    }
     public int solution(int n, int[] stations, int w) {
-        int answer = 0;
-
-        ArrayList<Interval> lst = new ArrayList<>();
-        
+        int answer = 0;       
         int left = 1;
         double coverageW = w * 2 + 1;
         for (int s : stations) {
