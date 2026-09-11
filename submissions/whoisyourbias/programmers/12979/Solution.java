@@ -16,27 +16,21 @@ class Solution {
         ArrayList<Interval> lst = new ArrayList<>();
         
         int left = 1;
+        double coverageW = w * 2 + 1;
         for (int s : stations) {
             // 현재 기지국 기준 왼쪽끝과 오른쪽끝
             int lend = Math.max(1, s - w);
             int rend = Math.min(n, s + w);
             
             if (lend - 1 - left > 0) {
-                lst.add(new Interval(left, lend - 1));
+                int v = (int) Math.ceil((double)(lend-1 + 1 - left) / coverageW);
+                answer += v;
             }
             left = rend + 1;
         }
-        if (n - left - 1 > 0)
-            lst.add(new Interval(left, n));
-        
-        int coverageW = w * 2 + 1;
-        for (Interval i : lst) {
-           // System.out.println(i);
-            if ((i.to + 1 - i.from) % coverageW == 0) {
-                answer += (i.to + 1 - i.from) / coverageW;
-            } else {
-                answer += 1 + (i.to + 1 - i.from) / coverageW;    
-            }        
+        if (n - left - 1 > 0) {
+            int v = (int) Math.ceil((double)(n + 1 - left) / coverageW);
+            answer += v;
         }
         return answer;
     }
