@@ -1,46 +1,44 @@
 import java.util.*;
 
 class Solution {
-    
-    // nPr
-    // N개 중에서 r개 고르기
-    boolean[] visited;
-    String[] selected;
-    int max;
-    String n;
-    ArrayList<Integer> lst;
     public String solution(String number, int k) {
         String answer = "";
-        
-        visited = new boolean[number.length()];
-        selected = new String[number.length()];
-        max = number.length() - k;
-        n = number;
-        lst = new ArrayList<>();
-        perm(0,0);
-        Collections.sort(lst, (a,b) -> b-a);
-        return String.valueOf(lst.get(0));
-    }
-    
-    public void perm(int cur,int cnt) {
-        if (cnt == max) {
-            StringBuilder sb = new StringBuilder();
+        boolean[] selected = new boolean[number.length()];
+        Arrays.fill(selected, true);
+        int i =0;
+        while (i < number.length()) {
+            int before = i;
             
-            for (int i  = 0; i < max; i++) {
-                sb.append(selected[i]);
+            int max = -1;
+            int max_i = -1;
+            for (; (i < before + k + 1) && (i < number.length()); i++) {
+                if (number.charAt(i) - '0' > max) {
+                    max = number.charAt(i) - '0';
+                    max_i = i;
+                }
+            }
+            i = before;
+            while (k > 0 && i < max_i) {
+                selected[i] = false;
+                k--;
+                i++;
             }
             
-            if (sb.length() == 0)
-                sb.append("0");
-            lst.add(Integer.parseInt(sb.toString()));
-            return;
+            if (k == number.length() - i - 1) {
+                i++;
+                while (i < number.length()) {
+                   selected[i++] = false;
+                    k--;
+                }
+            }
+            
+            i++;
         }
-        if (cur >= n.length())
-            return;
-        selected[cnt] = String.valueOf(n.charAt(cur));
-        perm(cur + 1, cnt + 1);
-
-        selected[cnt] = null;
-        perm(cur + 1, cnt);
+        
+        for (i = 0; i < number.length(); i++) {
+            if (selected[i] == true)
+                answer = answer.concat(String.valueOf(number.charAt(i)));
+        }
+        return answer;
     }
 }
