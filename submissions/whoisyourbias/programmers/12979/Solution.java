@@ -14,9 +14,9 @@ class Solution {
                 int v = (int) Math.ceil((double)(lend-1 + 1 - left) / coverageW);
                 answer += v;
             }
-            left = rend + 1;
+            left = Math.min(n, rend + 1);
         }
-        if (n - left - 1 > 0) {
+        if (n - left > 0) {
             int v = (int) Math.ceil((double)(n + 1 - left) / coverageW);
             answer += v;
         }
