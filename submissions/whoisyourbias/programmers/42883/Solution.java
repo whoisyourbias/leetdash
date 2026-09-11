@@ -19,7 +19,8 @@ class Solution {
         lst = new ArrayList<>();
         perm(0,0);
         Collections.sort(lst, (a,b) -> b-a);
-        
+        if (lst.size() == 0)
+            return "0";
         return String.valueOf(lst.get(0));
     }
     
@@ -30,6 +31,9 @@ class Solution {
             for (int i  = 0; i < max; i++) {
                 sb.append(selected[i]);
             }
+            
+            if (sb.length() == 0)
+                sb.append("0");
             lst.add(Integer.parseInt(sb.toString()));
             return;
         }
