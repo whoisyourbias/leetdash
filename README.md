@@ -1,5 +1,9 @@
 # LeetCode Progress Radar
 
+## extension
+
+![Chrome Extension](https://chromewebstore.google.com/detail/bhopameclpjjjfdhkjeaojhaljjoggdj?utm_source=item-share-cb)
+
 ## 서드파티 서비스 상태
 
 ![OpenCode Go Gateway](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fwhoisyourbias%2Fleetdash%2Fstatus-data%2Fstatus%2Fgateway-status.json)
