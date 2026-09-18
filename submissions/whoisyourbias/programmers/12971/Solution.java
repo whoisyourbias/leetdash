@@ -5,6 +5,8 @@ class Solution {
         // 원형 DP풀이법은 1 ~ N 1번하고, 0 ~ N-1 1번해서 최대값찾는거.
         if (sticker.length == 1)
             return sticker[0];
+        if (sticker.length == 2)
+            return Math.max(sticker[0], sticker[1]);
         
         answer = Math.max(dp(sticker, 1, sticker.length),
                          dp(sticker, 0, sticker.length - 1)
@@ -20,11 +22,7 @@ class Solution {
         
         for (int i = from + 2; i < to; i++) {
             // 현재를 선택하면 얻는 결과값
-            int cur = sticker[i] + chosen[i - 2];
-            if (cur > sticker[i - 1])
-                chosen[i] = cur;
-            else
-                chosen[i] = chosen[i-1];
+            chosen[i] = Math.max(chosen[i-1], sticker[i] + chosen[i-2]);
         }
         return chosen[to-1];
     }
