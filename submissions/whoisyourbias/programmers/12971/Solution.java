@@ -21,9 +21,8 @@ class Solution {
         chosen[1] = Math.max(sticker[from], sticker[from + 1]);
         
         for (int i = from + 2; i < to; i++) {
-            // 현재를 선택하면 얻는 결과값
             chosen[i] = Math.max(chosen[i-1], sticker[i] + chosen[i-2]);
         }
-        return chosen[to-1];
+        return chosen[to-from];
     }
 }
