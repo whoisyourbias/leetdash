@@ -5,6 +5,7 @@ import {
   normalizeRanges,
   splitLines,
   targetLine,
+  tokenizeCodeLine,
 } from "@/app/components/solution-code-viewer-helpers";
 
 describe("splitLines", () => {
@@ -40,6 +41,47 @@ describe("splitLines", () => {
   it("handles a multi-line source exactly matching editor display", () => {
     const source = "line1\nline2\nline3";
     expect(splitLines(source)).toEqual(["line1", "line2", "line3"]);
+  });
+});
+
+describe("tokenizeCodeLine", () => {
+  it("recognizes SQL keywords for the plain 'sql' language (Programmers SQL solutions)", () => {
+    const tokens = tokenizeCodeLine("SELECT name FROM users WHERE id = 1;", "sql");
+    expect(tokens.find((t) => t.text === "SELECT")?.kind).toBe("keyword");
+    expect(tokens.find((t) => t.text === "FROM")?.kind).toBe("keyword");
+    expect(tokens.find((t) => t.text === "WHERE")?.kind).toBe("keyword");
+  });
+
+  it("recognizes SQL keywords for CodeMirror-style 'text/x-mysql' language strings", () => {
+    const tokens = tokenizeCodeLine("select * from orders;", "text/x-mysql");
+    expect(tokens.find((t) => t.text === "select")?.kind).toBe("keyword");
+    expect(tokens.find((t) => t.text === "from")?.kind).toBe("keyword");
+  });
+
+  it("recognizes SQL keywords for 'x-mysql' and 'mysql' language strings", () => {
+    for (const language of ["x-mysql", "mysql", "MySQL"]) {
+      const tokens = tokenizeCodeLine("GROUP BY id", language);
+      expect(tokens.find((t) => t.text === "GROUP")?.kind).toBe("keyword");
+      expect(tokens.find((t) => t.text === "BY")?.kind).toBe("keyword");
+    }
+  });
+
+  it("treats `--` as a line comment for SQL languages", () => {
+    const tokens = tokenizeCodeLine("SELECT 1 -- trailing note", "mysql");
+    const commentToken = tokens.find((t) => t.kind === "comment");
+    expect(commentToken?.text).toBe("-- trailing note");
+  });
+
+  it("does not misclassify `--` as a comment for non-SQL languages", () => {
+    const tokens = tokenizeCodeLine("i--;", "java");
+    const decrementToken = tokens.find((t) => t.text === "--");
+    expect(decrementToken?.kind).toBe("operator");
+    expect(tokens.some((t) => t.kind === "comment")).toBe(false);
+  });
+
+  it("does not treat SQL keywords as keywords for unrelated languages", () => {
+    const tokens = tokenizeCodeLine("select = 1;", "java");
+    expect(tokens.find((t) => t.text === "select")?.kind).toBe("plain");
   });
 });
 

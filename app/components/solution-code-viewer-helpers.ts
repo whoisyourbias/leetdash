@@ -27,25 +27,43 @@ const TYPES = new Set(
     "object", "short", "String", "string", "undefined", "void", "Map", "Set", "List",
     "Array", "Integer", "Long", "Boolean", "Character"],
 );
+const SQL_KEYWORDS = new Set(
+  ["select", "from", "where", "join", "inner", "left", "right", "outer", "full", "on",
+    "group", "by", "order", "having", "insert", "into", "values", "update", "set", "delete",
+    "create", "table", "alter", "drop", "distinct", "as", "and", "or", "not", "null", "is",
+    "in", "like", "between", "limit", "offset", "union", "all", "case", "when", "then", "else",
+    "end", "count", "sum", "avg", "min", "max", "asc", "desc", "exists", "default", "primary",
+    "key", "foreign", "references", "index", "unique", "constraint", "with", "over", "partition",
+    "cross", "using", "truncate", "view", "procedure", "function", "declare", "begin", "if",
+    "while", "return"],
+);
+
+const DEFAULT_PATTERN = /("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\/\/.*|#.*|\/\*.*?\*\/|\b\d+(?:\.\d+)?\b|[A-Za-z_$][\w$]*|===|!==|=>|==|!=|<=|>=|&&|\|\||\+\+|--|[+*/%=!<>?:&|~-]|[{}()[\];,.:])/g;
+/** SQL dialects (mysql, x-mysql, text/x-mysql, postgresql, ...) use `--` for line comments
+ * instead of `//`, so this variant matches the rest of the line once `--` is seen. */
+const SQL_PATTERN = /("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|--.*|\/\/.*|#.*|\/\*.*?\*\/|\b\d+(?:\.\d+)?\b|[A-Za-z_$][\w$]*|===|!==|=>|==|!=|<=|>=|&&|\|\||\+\+|--|[+*/%=!<>?:&|~-]|[{}()[\];,.:])/g;
 
 /** Tokenizes one source line without changing its text. It intentionally stays small and
  * dependency-free so the viewer works for every submission language in the static app. */
 export function tokenizeCodeLine(line: string, language = ""): SyntaxToken[] {
   const tokens: SyntaxToken[] = [];
-  const pattern = /("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\/\/.*|#.*|\/\*.*?\*\/|\b\d+(?:\.\d+)?\b|[A-Za-z_$][\w$]*|===|!==|=>|==|!=|<=|>=|&&|\|\||\+\+|--|[+*/%=!<>?:&|~-]|[{}()[\];,.:])/g;
+  const lowerLanguage = language.toLowerCase();
+  const isSql = lowerLanguage.includes("sql");
+  const pattern = isSql ? SQL_PATTERN : DEFAULT_PATTERN;
+  pattern.lastIndex = 0;
   let cursor = 0;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(line)) !== null) {
     if (match.index > cursor) tokens.push({ kind: "plain", text: line.slice(cursor, match.index) });
     const text = match[0];
     let kind: SyntaxTokenKind = "plain";
-    if (/^(?:\/\/|#|\/\*)/.test(text)) kind = "comment";
+    if (/^(?:\/\/|#|\/\*)/.test(text) || (isSql && text.startsWith("--"))) kind = "comment";
     else if (/^["'`]/.test(text)) kind = "string";
     else if (/^\d/.test(text)) kind = "number";
     else if (/^[A-Za-z_$]/.test(text)) {
-      const lowerLanguage = language.toLowerCase();
       kind = KEYWORDS.has(text) ? "keyword" : TYPES.has(text) ? "type" :
         (lowerLanguage.includes("python") && ["True", "False", "None", "self"].includes(text)) ? "keyword" :
+        (isSql && SQL_KEYWORDS.has(text.toLowerCase())) ? "keyword" :
         "plain";
       const next = line.slice(pattern.lastIndex).match(/^\s*\(/);
       if (kind === "plain" && next) kind = "function";
