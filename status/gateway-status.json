@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "label": "OpenCode Go Gateway",
-  "message": "up",
-  "color": "brightgreen",
-  "lastChecked": "2026-10-17T14:55:30.715Z"
+  "message": "down",
+  "color": "red",
+  "lastChecked": "2026-10-17T17:45:15.662Z"
 }
